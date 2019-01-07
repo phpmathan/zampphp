@@ -210,10 +210,10 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
     }
     
     public static function isValidSessionId($id) {
-		if(empty($id) || !($id = trim($id)))
-			return false;
+        if(empty($id) || !($id = trim($id)))
+            return false;
         
-		return preg_match('/^[a-f0-9]{40}$/', $id);
+        return preg_match('/^[a-f0-9]{40}$/', $id);
     }
     
     public function open($savePath, $sessionName) {

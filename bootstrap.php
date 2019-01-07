@@ -274,32 +274,32 @@ $bootstrap = [
 ];
 
 function debug($data, $exit=true, $dump=false) {
-	echo "<PRE>";
-	
-	if($dump)
-		@var_dump($data);
-	else
-		@print_r($data);
-	
-	echo "</PRE>";
-	
-	if($exit)
-		Zamp\cleanExit();
+    echo "<PRE>";
+    
+    if($dump)
+        @var_dump($data);
+    else
+        @print_r($data);
+    
+    echo "</PRE>";
+    
+    if($exit)
+        Zamp\cleanExit();
 }
 
 function debugData($data, $name='', $append=true) {
-	$options = LOCK_EX;
-	
-	if($append)
-		$options = $options | FILE_APPEND;
-	
-	$log = '';
-	
-	if($name)
-		$log .= "// {$name}\n";
-	
-	$log .= print_r($data, true)."\n/*************************************************************/\n";
-	
-	file_put_contents(PATH_DETAILS['PROJECT'].'/debug.txt', $log, $options);
+    $options = LOCK_EX;
+    
+    if($append)
+        $options = $options | FILE_APPEND;
+    
+    $log = '';
+    
+    if($name)
+        $log .= "// {$name}\n";
+    
+    $log .= print_r($data, true)."\n/*************************************************************/\n";
+    
+    file_put_contents(PATH_DETAILS['PROJECT'].'/debug.txt', $log, $options);
 }
 /* END OF FILE */
