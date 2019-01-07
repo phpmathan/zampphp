@@ -423,33 +423,35 @@ function isFileExists($input1, $input2='', $forceCheck=false, $noCacheSave=false
     if(!$cacheKey)
         return false;
     
-    if(!isset($GLOBALS['ZampFilePresenceCache'])) {
-        $GLOBALS['ZampFilePresenceCache'] = [];
+    static $filesCache = null;
+    
+    if($filesCache === null) {
+        $filesCache = [];
         
         $cacheFile = PATH_DETAILS['TEMP'].'/cache/zamp_file_presence_cache.php';
         
         if(file_exists($cacheFile)) {
-            $GLOBALS['ZampFilePresenceCache'] = include $cacheFile;
+            $filesCache = include $cacheFile;
             
-            if((array) $GLOBALS['ZampFilePresenceCache'] !== $GLOBALS['ZampFilePresenceCache'])
-                $GLOBALS['ZampFilePresenceCache'] = [];
+            if((array) $filesCache !== $filesCache)
+                $filesCache = [];
         }
     }
     
-    if(!$forceCheck && isset($GLOBALS['ZampFilePresenceCache'][$cacheKey])) {
-        if($GLOBALS['ZampFilePresenceCache'][$cacheKey] && $cacheKey == $file)
+    if(!$forceCheck && isset($filesCache[$cacheKey])) {
+        if($filesCache[$cacheKey] && $cacheKey == $file)
             return $file;
         else
-            return $GLOBALS['ZampFilePresenceCache'][$cacheKey];
+            return $filesCache[$cacheKey];
     }
     
     if(!$file)
         return false;
     elseif(file_exists($file))
-        $GLOBALS['ZampFilePresenceCache'][$cacheKey] = $cacheKey == $file ?:$file;
+        $filesCache[$cacheKey] = $cacheKey == $file ?:$file;
     else {
         $file = false;
-        $GLOBALS['ZampFilePresenceCache'][$cacheKey] = $file;
+        $filesCache[$cacheKey] = $file;
     }
     
     if($noCacheSave && !$file)
@@ -457,7 +459,7 @@ function isFileExists($input1, $input2='', $forceCheck=false, $noCacheSave=false
     elseif(!isset($cacheFile))
         $cacheFile = PATH_DETAILS['TEMP'].'/cache/zamp_file_presence_cache.php';
     
-    file_put_contents($cacheFile, "<?php\n// ".date('r')."\nreturn ".var_export($GLOBALS['ZampFilePresenceCache'], true).";\n", LOCK_EX);
+    file_put_contents($cacheFile, "<?php\n// ".date('r')."\nreturn ".var_export($filesCache, true).";\n", LOCK_EX);
     
     General::invalidate($cacheFile);
     
