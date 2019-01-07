@@ -89,7 +89,7 @@ class System extends Base {
 		$errorDialog = "Undefined function <font color='blue'>$funName</font> called with the following arguments";
 		$errorDialog .= '<pre>'.var_export($args, true).'</pre>';
 		
-		throw new \Exception($errorDialog);
+		throw new Exceptions\UndefinedMethod($errorDialog);
 	}
 	
 	public function __get($name) {
@@ -104,7 +104,7 @@ class System extends Base {
 	
 	public function setProperty($name, $type, $value) {
 		if(isset($this->_restrictedProperties[$name]))
-			throw new \Exception("Property <font color='red'>$name</font> can not be set due to restricted properties.");
+			throw new Exceptions\ReservedProperty("Property <font color='red'>$name</font> can not be set due to restricted properties.");
 		
 		$this->_runTimeProperties[$name] = [
 			'type' => ucfirst(strtolower($type)),
@@ -129,7 +129,7 @@ class System extends Base {
 			return $this;
 		
 		if(empty($config['applications']) || (array) $config['applications'] !== $config['applications'])
-            throw new \Exception('Applications not defined');
+            throw new Exceptions\Bootstrap('Applications not defined');
 		
 		$this->view = Core::getInstance(View::class);
 		$this->view->setThemeName($config['view']['themeName']);
@@ -247,7 +247,7 @@ class System extends Base {
 				if($handler = $obj->getMethodErrorHandler()) {
 					if(!method_exists($obj, $handler)) {
 						if($this->config['bootstrap']['isDevelopmentPhase']) {
-							throw new \Exception("Method access error reporting failed. Method name `{$handler}` not found in <font color='blue'>{$this->_bootInfo['controller']['class']}</font>");
+							throw new Exceptions\UndefinedMethod("Method access error reporting failed. Method name `{$handler}` not found in <font color='blue'>{$this->_bootInfo['controller']['class']}</font>");
 						}
 						else
 							$this->showErrorPage(500);
@@ -256,12 +256,15 @@ class System extends Base {
 					$isOk = $obj->$handler($action, $isOk);
 				}
 				elseif($this->config['bootstrap']['isDevelopmentPhase']) {
-					if($isOk == 'internalMethod')
-						throw new \Exception("Method begins with `_` are considered as internal use only, and can not be accessed via routing.");
-					elseif($isOk == 'blocked')
-						throw new \Exception("<font color='blue'>{$this->_bootInfo['controller']['class']}->{$action}()</font> is in `_blockedMethods` list.");
-					else
-						throw new \Exception("<font color='blue'>{$this->_bootInfo['controller']['class']}->{$action}()</font> is not defined.");
+					if($isOk == 'internalMethod') {
+						throw new Exceptions\RestrictedAccess("Method begins with `_` are considered as internal use only, and can not be accessed via routing.");
+					}
+					elseif($isOk == 'blocked') {
+						throw new Exceptions\RestrictedAccess("<font color='blue'>{$this->_bootInfo['controller']['class']}->{$action}()</font> is in `_blockedMethods` list.");
+					}
+					else {
+						throw new Exceptions\UndefinedMethod("<font color='blue'>{$this->_bootInfo['controller']['class']}->{$action}()</font> is not defined.");
+					}
 				}
 				else {
 					if($callback = $this->config['bootstrap']['routing404Callback'])
@@ -436,7 +439,7 @@ class System extends Base {
 		}
 		catch(\Exception $e) {
 			if($this->config['bootstrap']['isDevelopmentPhase'])
-				throw new \Exception($e->getMessage());
+				throw new Exceptions\ControllerNotFound($e->getMessage());
 			
 			$showErrorPage = true;
 			
@@ -619,7 +622,7 @@ class System extends Base {
 		$errorDialog .= "
 						</table>";
 		
-		throw new \Exception($errorDialog, 16);
+		throw new Exceptions\Bootstrap($errorDialog);
 	}
 	
     public function systemTime($format=null, $timeDiff=null) {

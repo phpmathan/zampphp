@@ -19,10 +19,10 @@ class File extends AbstractClass {
         
         if(!is_dir($config['path'])) {
             if(!mkdir($config['path'], 0777, true))
-                throw new \Exception("File cache folder <font color='blue'>{$config['path']}</font> creation failed.");
+                throw new \Zamp\Exceptions\FolderCreateFailed("File cache folder <font color='blue'>{$config['path']}</font> creation failed.");
         }
         elseif(!is_writable($config['path']))
-            throw new \Exception("File cache folder <font color='blue'>{$config['path']}</font> is not writable.");
+            throw new \Zamp\Exceptions\PathNotWritable("File cache folder <font color='blue'>{$config['path']}</font> is not writable.");
         
         parent::__construct($config, $ttl);
     }

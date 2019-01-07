@@ -19,12 +19,6 @@ define('PATH_DETAILS', $pathInfo);
 unset($pathInfo);
 
 /**
- *  Define the Application namespace
- *  Example: application\\Modules
- */
-define('APP_NAMESPACE', 'application\\Modules');
-
-/**
  *    default timezone for direct calling of date() like functions
  *    You're advised to avoid using date() or time() functions in your framework projects, instead use
  *    Zamp\Core->systemTime() method

@@ -221,7 +221,7 @@ final class Core {
 		elseif(!$showException)
 			return false;
 		else
-			throw new \Exception("File <font color='blue'>$filename</font> Not Found!");
+			throw new Exceptions\FileNotFound("File <font color='blue'>$filename</font> Not Found!");
     }
     
     public static function getInstance($className, $args=[], $reload=false) {
@@ -549,12 +549,12 @@ function getConfFile($confFileName, $moduleName, $appName='') {
 	if($bootedApp != $appName)
 		return getConfFile($confFileName, $moduleName, $bootedApp);
 	
-	throw new \Exception('Configuration file not found in any of the following path.<br/>- '.implode('<br/>- ', array_keys($checkedPaths[$checkKey])));
+	throw new Exceptions\FileNotFound('Configuration file not found in any of the following path.<br/>- '.implode('<br/>- ', array_keys($checkedPaths[$checkKey])));
 }
 
 function setSession($key, $value, $unsetBeforeSet=false) {
 	if(!Session::isStarted())
-		throw new \Exception('Session is not yet started!');
+		throw new Exceptions\Session('Session is not yet started!');
 	
 	$handle = function() use ($key, $value, $unsetBeforeSet) {
 		$key = explode('/', $key);

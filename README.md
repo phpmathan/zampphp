@@ -1,2 +1,2 @@
-# zampphp
+# Zamp PHP
 Light weight PHP framework.

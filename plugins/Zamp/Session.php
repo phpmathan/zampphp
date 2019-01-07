@@ -36,10 +36,10 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
             
             if(!is_dir($savePath)) {
                 if(!mkdir($savePath, 0777, true))
-                    throw new \Exception("Session `savePath` folder <font color='blue'>{$savePath}</font> creation failed.");
+                    throw new Exceptions\FolderCreateFailed("Session `savePath` folder <font color='blue'>{$savePath}</font> creation failed.");
             }
             elseif(!is_writable($savePath))
-                throw new \Exception("Session `savePath` folder <font color='blue'>{$savePath}</font> is not writable.");
+                throw new Exceptions\PathNotWritable("Session `savePath` folder <font color='blue'>{$savePath}</font> is not writable.");
             
             session_save_path($savePath);
         }
@@ -97,7 +97,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
     
     final public static function start($config) {
         if(self::isStarted())
-            throw new \Exception('Session is already started!');
+            throw new Exceptions\Session('Session is already started!');
         
         register_shutdown_function('\session_write_close');
         
@@ -127,7 +127,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
     
     final public static function profileSwitch($profile, $config=[]) {
         if(!self::isStarted())
-            throw new \Exception('Session is not yet started!');
+            throw new Exceptions\Session('Session is not yet started!');
         
         if(self::$_info['profile'] == $profile)
             return false;

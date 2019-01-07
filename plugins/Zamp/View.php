@@ -63,7 +63,7 @@ class View extends Base {
         list($modulePath,) = explode('/Controller/', Core::system()->bootInfo('controller')['path'], 2);
         
         if($modulePath == $baseFolder)
-            throw new \Exception("Controller action's view file not found in following path.<br/>- {$fullPath}");
+            throw new Exceptions\ViewNotFound("Controller action's view file not found in following path.<br/>- {$fullPath}");
         
         $baseFolder = $modulePath;
         $module = substr(strrchr($baseFolder, '/'), 1);
@@ -77,7 +77,7 @@ class View extends Base {
             return true;
         }
         
-        throw new \Exception("Controller action's view file not found in any of the following path.<br/>- {$fullPath}<br/>- {$fullPath2}");
+        throw new Exceptions\ViewNotFound("Controller action's view file not found in any of the following path.<br/>- {$fullPath}<br/>- {$fullPath2}");
     }
     
     public function isRendered() {

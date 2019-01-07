@@ -143,7 +143,7 @@ class Application extends Base {
     
     public function __set($key, $value) {
         if(isset(Core::system()->_restrictedProperties[$key]))
-            throw new \Exception("Property `{$key}` is reserved for Zamp PHP!");
+            throw new Exceptions\ReservedProperty("Property `{$key}` is reserved for Zamp PHP!");
         
         $this->$key = $value;
     }

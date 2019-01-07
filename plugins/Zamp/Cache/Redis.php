@@ -17,17 +17,17 @@ class Redis extends AbstractClass {
     
     public function __construct($config, $ttl) {
         if(!extension_loaded('Redis'))
-            throw new \Exception('Could not Initialize Redis Cache');
+            throw new \Zamp\Exceptions\CacheInitFailed('Could not Initialize Redis Cache');
         
         $config = array_merge($this->config, $config);
         
         $this->redisServer = new \Redis();
         
         if(!$this->redisServer->connect($config['host'], $config['port'], $config['timeout']))
-            throw new \Exception('Redis connection failed.');
+            throw new \Zamp\Exceptions\CacheInitFailed('Redis connection failed.');
         
         if(isset($config['password']) && !$this->redisServer->auth($config['password']))
-            throw new \Exception('Redis authentication failed.');
+            throw new \Zamp\Exceptions\CacheInitFailed('Redis authentication failed.');
         
         if(isset($config['database']))
             $this->redisServer->select((int) $config['database']);

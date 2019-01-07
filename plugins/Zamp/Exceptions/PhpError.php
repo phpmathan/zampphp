@@ -2,7 +2,7 @@
 
 namespace Zamp\Exceptions;
 
-class PhpErrorException extends \Exception {
+class PhpError extends \Exception {
     public function __construct($errno, $errstr, $errfile, $errline) {
 		static $errorTypes = [
 			E_ERROR => 'Error',

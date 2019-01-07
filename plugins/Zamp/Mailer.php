@@ -41,14 +41,14 @@ class Mailer {
         self::_init();
         
         if(!isset($settings['_object']))
-            throw new \Exception("Transport settings `_object` is required.");
+            throw new Exceptions\Mailer("Transport settings `_object` is required.");
         
         if(is_callable($settings['_object']))
             $obj = $settings['_object']();
         elseif(gettype($settings['_object']) === 'string')
             $obj = new $settings['_object']();
         else
-            throw new \Exception("Transport settings `_object` is not valid.");
+            throw new Exceptions\Mailer("Transport settings `_object` is not valid.");
         
         foreach($settings as $key => $value) {
             if($key == '_object' || $key == '_handler')
@@ -203,7 +203,7 @@ class Mailer {
             $transport = self::getTransport($transport);
         
         if(!$transport instanceof \Swift_Transport)
-            throw new \Exception('Mailer Transport is not valid.');
+            throw new Exceptions\Mailer('Mailer Transport is not valid.');
         
         $inlineImages = [];
         
@@ -213,7 +213,7 @@ class Mailer {
                     $image = self::getInlineImage($image);
                 
                 if(!$image instanceof \Swift_Image)
-                    throw new \Exception('Inline Image is not an instance of Swift_Image.');
+                    throw new Exceptions\Mailer('Inline Image is not an instance of Swift_Image.');
                 
                 $inlineImages[$image->internalTrackingId] = $image;
             }
@@ -227,14 +227,14 @@ class Mailer {
                     $file = self::getAttachment($file);
                 
                 if(!$file instanceof \Swift_Attachment)
-                    throw new \Exception('Attachment File is not an instance of Swift_Attachment.');
+                    throw new Exceptions\Mailer('Attachment File is not an instance of Swift_Attachment.');
                 
                 $attachments[$file->internalTrackingId] = $file;
             }
         }
         
         if(empty($config['message']) || (array) $config['message'] !== $config['message'])
-            throw new \Exception('Mailer Message valid settings required.');
+            throw new Exceptions\Mailer('Mailer Message valid settings required.');
         
         $message = new \Swift_Message();
         

@@ -153,7 +153,7 @@ $bootstrap = [
     
     /**
      *  Default Email Transport to use for outgoing emails
-     *  Refer \Zamp\Mailers::getTransport() method for options.
+     *  Refer \Zamp\Mailer::getTransport() method for options.
      */
     'defaultEmailTransport' => [
         '_object' => 'Swift_SmtpTransport',

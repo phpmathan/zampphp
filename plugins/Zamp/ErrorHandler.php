@@ -21,7 +21,7 @@ class ErrorHandler extends Base {
     // PHP error handler overwritten by this errorHandler method
     public static function errorHandler($errno, $errstr, $errfile, $errline) {
 		if(error_reporting() != 0)
-			throw new Exceptions\PhpErrorException($errno, $errstr, $errfile, $errline);
+			throw new Exceptions\PhpError($errno, $errstr, $errfile, $errline);
     }
     
     // Handling the Exceptions
@@ -166,7 +166,7 @@ class ErrorHandler extends Base {
     
     // Collecting the error information
     public static function getErrorInfo($exception) {
-		if($exception instanceof Exceptions\PhpErrorException) {
+		if($exception instanceof Exceptions\PhpError) {
 			$traces = $exception->getTrace();
 			$errorInfo = [];
 			
@@ -229,7 +229,7 @@ class ErrorHandler extends Base {
     protected static function getTraces($exception, $format='html') {
 		$traceData = $exception->getTrace();
 		
-		if($exception instanceof Exceptions\PhpErrorException)
+		if($exception instanceof Exceptions\PhpError)
 			array_shift($traceData);
 		
 		array_unshift($traceData, [

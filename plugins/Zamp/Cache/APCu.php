@@ -9,7 +9,7 @@ class APCu extends AbstractClass {
     
     public function __construct($config, $ttl) {
         if(!function_exists('\apcu_cache_info'))
-            throw new \Exception('Could not Initialize APCu Cache');
+            throw new \Zamp\Exceptions\CacheInitFailed('Could not Initialize APCu Cache');
         
         parent::__construct($config, $ttl);
     }
