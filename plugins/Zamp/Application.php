@@ -108,15 +108,18 @@ class Application extends Base {
         return $value;
     }
     
-    public function _($className, &$assignTo=null, $forStaticCall=false) {
+    public function _($className, $forStaticCall=false) {
         $applicationNameSpace = Core::system()->config['bootstrap']['applicationNameSpace'];
         
         if(strpos($className, $applicationNameSpace) !== 0)
             $className = $applicationNameSpace.'\\'.$className;
         
-        $assignTo = Core::system()->getAppClass($this->getAppName(), $className, false);
+        $obj = $forStaticCall ?(Core::system()->bootInfo('application')['name'] != $this->_appName) :true;
         
-        return $forStaticCall ?$className :$assignTo;
+        if($obj)
+            $obj = Core::system()->getAppClass($this->getAppName(), $className, false);
+        
+        return $forStaticCall ?$className :$obj;
     }
     
     public function __call($fnName, $args) {
@@ -139,6 +142,14 @@ class Application extends Base {
             
             return $system->$key;
         }
+        
+        $className = static::class;
+        $className = substr($className, 0, strrpos($className, '\\')).'\\'.$key;
+        
+        $obj = Core::system()->getAppClass($this->getAppName(), $className, false);
+        $this->$key =& $obj;
+        
+        return $this->$key;
     }
     
     public function __set($key, $value) {
