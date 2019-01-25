@@ -1,6 +1,6 @@
 <?php
 
-namespace app\Modules\App;
+namespace modules\App;
 
 class App extends \Zamp\Model {
     
