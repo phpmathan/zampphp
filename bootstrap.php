@@ -270,7 +270,7 @@ $bootstrap = [
     /**
      *  Callback to call whenever module configurations loaded
      *  
-     *  yourCallback(String $moduleName, String $applicationName, Array $configFilesFullPath): void
+     *  yourCallback(String $moduleName, Array $configFilesFullPath): void
      *  
      *  refer Zamp\doCall() function in Zamp/Core.php for callback functions
      */
