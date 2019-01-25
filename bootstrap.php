@@ -1,5 +1,24 @@
 <?php
 
+/**
+ *  For explanation, assume you are in `Api` module and it namespace is `modules/Api`
+ *  
+ *  - Controller or Model in the SAME module can be accessed directly using $this
+ *      $this->ApiController->getRequest() => this will resolve to `{APP}/Api/Controller/ApiController.php`
+ *      $this->ApiHelper->checkLimits() => this will resolve to `{APP}/Api/Model/ApiHelper.php`
+ * 
+ *  - Controller or Model in the SAME module can be accessed directly in static method
+ *      ApiController::getRequest() => this will resolve to `{APP}/Api/Controller/ApiController.php`
+ *      ApiHelper::checkLimits() => this will resolve to `{APP}/Api/Model/ApiHelper.php`
+ * 
+ *  - If model class name same as module name, then class name can be ignored in namespace
+ *      \modules\Api\Api::getToken() which can be simply \modules\Api::getToken()
+ *      \module\Api\Api::obj()->getToken() which can be simply \modules\Api::obj()->getToken()
+ * 
+ *  - If controller class name same as module name, then class name can be just `Controller` in namespace
+ *      \modules\Api\ApiController::getToken() which can be simply \modules\Api\Controller::getToken()
+ *      \module\Api\ApiController::obj()->getToken() which can be simply \modules\Api\Controller::obj()->getToken()
+ */
 $bootstrap = [
     // Is this development phase. if set to true then error/debug messages will be displayed.
     'isDevelopmentPhase' => true,
@@ -48,21 +67,6 @@ $bootstrap = [
     'appTimeDiffFromGmt' => 0,
     
     /**
-     *  you can add more applications under your applications directory.
-     *  array key is the URL's Controller name. "*" means all URL
-     *  array value is application folder name
-     *  Example: you've 2 applications called blog and news, so you can define the Application as
-     *  $bootstrap['applications']['Blog'] = 'blog'; -> means if the URL start with 'blog' then the blog application (PATH_DETAILS['APPLICATIONS'].'blog') will be loaded. NOTE: Here 'Blog' Controller converted into an application and following name treated as new Controller.
-     *  $bootstrap['applications']['*'] = 'news'; -> means for all URL (which are not matched in the defined applications) the news application (PATH_DETAILS['APPLICATIONS'].'news') will be loaded.
-     *  Explanation:
-     *  http://localhost/blog/add/post -> AddController->post() inside the blog application called.
-     *  http://localhost/add -> AddController->yourDefaultAction() inside the news application called.
-     */
-    'applications' => [
-        '*' => 'main',
-    ],
-    
-    /**
      *  Routing configurations
      *
      *  You can route any URL by regular expression. key MUST be regular expression and value may contain matched part
@@ -81,7 +85,7 @@ $bootstrap = [
      *  Zamp considered as `http://your-application.com/product/view/123`
      *
      *  If the URL routed based on your conditions then you can check route information
-     *  from `$this->_params` array which is Zamp\System property
+     *  from \Zamp()->bootInfo('routeInfo')
      */
     'router' => [
         
@@ -99,7 +103,7 @@ $bootstrap = [
         
         // yourCallback(): void
         'viewRenderCallback' => function() {
-            $zamp = \Zamp\Core::system();
+            $zamp = \Zamp();
             $data = $zamp->view->getAll();
             
             foreach($data as $k => $v)
@@ -109,7 +113,7 @@ $bootstrap = [
             
             $actionFile = $zamp->view->actionFile();
             
-            include PATH_DETAILS['APPLICATIONS'].'/main/Core/View/default/index.php';
+            include $zamp->view->layoutFile()['fullPath'];
         },
     ],
     
@@ -135,7 +139,7 @@ $bootstrap = [
      *  
      *  Now, Zamp will try to read from `Core/Config/Cron.noauto.php`, if it not found then it will be read from `Cron/Config/Cron.noauto.php`
      */
-    'configFirstCheckUnder' => 'Core',
+    'configFirstCheckUnder' => 'App',
     
     /**
      *  Set the module where you'll keep all modules view files.
@@ -149,7 +153,7 @@ $bootstrap = [
      *  
      *  Now, Zamp will try to read from `Core/View/{themeName}/Cron/listjobs.{fileExtension}`, if it not found then it will be read from `Cron/View/{themeName}/Cron/listjobs.{fileExtension}`
      */
-    'viewFirstCheckUnder' => 'Core',
+    'viewFirstCheckUnder' => 'App',
     
     /**
      *  Default Email Transport to use for outgoing emails
@@ -169,7 +173,7 @@ $bootstrap = [
      *  If you set sendEmailAlert = true in the following settings then you can use Zamp\Mailer::send() options
      */
     'errorHandler' => [
-        'saveErrorIntoFolder' => PATH_DETAILS['PROJECT'].'/app_errors',
+        'saveErrorIntoFolder' => PATH_DETAILS['TEMP'].'/errors',
         'errorFileFormat' => 'Y-m-d--h-i-s-a',
         'errorTimeDiffFromGmt' => 19800,
         'sendEmailAlert' => true,
@@ -186,24 +190,24 @@ $bootstrap = [
     ],
     
     /**
-     *  Set your application name
+     *  Set your application namespace
      *  
      *  If class name contain `Controller` then it will be resolve into Controller folder
-     *  Example: app\Modules\Core\IndexController -> resolves to PATH_DETAILS['APPLICATIONS']/{APP-NAME}/Core/Controller/IndexController.php
+     *  Example: modules\Core\IndexController -> resolves to PATH_DETAILS['APPLICATION']/Core/Controller/IndexController.php
      *  
      *  If class found just after the module then it will be resolve into Model folder
-     *  Example: app\Modules\Core\Misc -> resolves to PATH_DETAILS['APPLICATIONS']/{APP-NAME}/Core/Model/Misc.php
+     *  Example: modules\Core\Misc -> resolves to PATH_DETAILS['APPLICATION']/Core/Model/Misc.php
      *  
      *  If class NOT found just after the module then it will resolve relative to the namespace path
-     *  Example: app\Modules\Core\Helpers\Array2Xml -> resolves to PATH_DETAILS['APPLICATIONS']/{APP-NAME}/Core/Helpers/Array2Xml.php
-     *  Example: app\Modules\Core\Plugins\Http\Request\Hander -> resolves to PATH_DETAILS['APPLICATIONS']/{APP-NAME}/Core/Plugins/Http/Request/Hander.php
+     *  Example: modules\Core\Helpers\Array2Xml -> resolves to PATH_DETAILS['APPLICATION']/Core/Helpers/Array2Xml.php
+     *  Example: modules\Core\Plugins\Http\Request\Hander -> resolves to PATH_DETAILS['APPLICATION']/Core/Plugins/Http/Request/Hander.php
      */
-    'applicationNameSpace' => app\Modules::class,
+    'applicationNameSpace' => 'modules',
     
     /**
      *  Set your default controller name withOUT `Controller` suffix
      *  
-     *  NOTE: If your controller not found in `Core` module, then update the same in `applications/<your-application>/classMapping.php`
+     *  NOTE: If your controller not found in `Core` module, then update the same in `PATH_DETAILS['APPLICATION']/classMapping.php`
      */
     'defaultController' => 'Index',
     
@@ -228,13 +232,13 @@ $bootstrap = [
      *          if($errorType != 'controllerNotFound')
      *              return false;
      *          
-     *          \Zamp\Core::system()->bootInfoSet('controller', [
+     *          \Zamp()->bootInfoSet('controller', [
      *              'request' => 'Error',
-     *              'class' => app\Modules\Core\ErrorController::class,
-     *              'path' => app\Modules\Core\ErrorController::getModulePath().'/Controller/ErrorController.php',
+     *              'class' => modules\Core\ErrorController::class,
+     *              'path' => modules\Core\ErrorController::modulePath().'/Controller/ErrorController.php',
      *          ]);
      *          
-     *          \Zamp\Core::system()->bootInfoSet('action', 'showError');
+     *          \Zamp()->bootInfoSet('action', 'showError');
      *          
      *          return true;
      *      }
@@ -264,7 +268,7 @@ $bootstrap = [
     ],
     
     /**
-     *  Callback to call when ever module configurations loaded
+     *  Callback to call whenever module configurations loaded
      *  
      *  yourCallback(String $moduleName, String $applicationName, Array $configFilesFullPath): void
      *  
@@ -272,34 +276,4 @@ $bootstrap = [
      */
     'onModuleConfigLoadedCallback' => '',
 ];
-
-function debug($data, $exit=true, $dump=false) {
-    echo "<PRE>";
-    
-    if($dump)
-        @var_dump($data);
-    else
-        @print_r($data);
-    
-    echo "</PRE>";
-    
-    if($exit)
-        Zamp\cleanExit();
-}
-
-function debugData($data, $name='', $append=true) {
-    $options = LOCK_EX;
-    
-    if($append)
-        $options = $options | FILE_APPEND;
-    
-    $log = '';
-    
-    if($name)
-        $log .= "// {$name}\n";
-    
-    $log .= print_r($data, true)."\n/*************************************************************/\n";
-    
-    file_put_contents(PATH_DETAILS['PROJECT'].'/debug.txt', $log, $options);
-}
 /* END OF FILE */

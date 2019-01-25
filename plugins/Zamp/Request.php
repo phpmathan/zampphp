@@ -559,12 +559,7 @@ class Request extends Base {
     
     // Is request from CLI
     public function isCli() {
-        static $isCli;
-        
-        if($isCli !== null)
-            return $isCli;
-        
-        return $isCli = php_sapi_name() === 'cli' || defined('STDIN') || isset($_ENV['SHELL']);
+        return NEXT_LINE != '<br/>';
     }
     
     // Is post request?

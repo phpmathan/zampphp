@@ -6,7 +6,12 @@ if(phpversion() < '7.3.0')
     exit("Your PHP version must be 7.3.0 or higher. Current version: " . phpversion());
 
 // Zamp PHP version
-const VERSION = '6.0.1';
+const VERSION = '6.1.0';
+
+// Define next line character
+define(__NAMESPACE__.'\NEXT_LINE', (
+    php_sapi_name() === 'cli' || defined('STDIN') || isset($_ENV['SHELL'])) ?PHP_EOL :'<br/>'
+);
 
 /**
  *  Define the PATH_DETAILS constant
@@ -14,7 +19,7 @@ const VERSION = '6.0.1';
  *  [
  *      'PUBLIC' => 'path to public folder',
  *      'PROJECT' => 'path to project main folder',
- *      'APPLICATIONS' => 'path to applications folder',
+ *      'APPLICATION' => 'path to application folder',
  *      'PLUGINS' => 'path to plugins folder',
  *      'TEMP' => 'path to temporary folder',
  *  ];
@@ -35,6 +40,9 @@ require_once PATH_DETAILS['PLUGINS'].'/Zamp/Application.php';
 final class Core {
     // Initiated objects
     private static $_instances = [];
+    
+    // Class alias
+    private static $_aliases = [];
     
     // If vendor having their own auto loader, add them in Zamp auto loader exclude list
     private static $_autoloaderSkipList = [];
@@ -163,44 +171,78 @@ final class Core {
         return false;
     }
     
-    // Check the class file available or not
-    public static function isAvailable($className, $appsName='', $includeFile=true, $showException=false) {
-        $cacheKey = ($appsName ?$appsName.':' :'').$className;
+    private static function _detectAlias($info) {
+        if(!$info['fileLoaded'] || $info['classAlias'] || class_exists($info['className'], false))
+            return $info;
         
-        if($filename = isFileExists($cacheKey, true)) {
-            if($includeFile)
-                require_once $filename;
+        $isAppClass = $info['isAppClass'] ?: strpos($info['className'], self::system()->config['bootstrap']['applicationNameSpace'].'\\') === 0;
+        
+        if(!$isAppClass)
+            return $info;
+        
+        $className = explode('\\', $info['className']);
+        $class = array_pop($className);
+        
+        $info['classAlias'] = $info['className'];
+        
+        if($class != 'Controller')
+            $info['className'] = $info['className'].'\\'.$class;
+        else {
+            $module = array_pop($className);
+            $info['className'] = implode('\\', $className).'\\'.$module.'\\'.$module.$class;
+        }
+        
+        return $info;
+    }
+    
+    // Check the class file available or not
+    public static function isAvailable($className, $includeFile=true, $showException=false) {
+        $return = [
+            'className' => $className,
+            'classAlias' => null,
+            'filePath' => null,
+            'isAppClass' => false,
+            'fileLoaded' => false,
+        ];
+        
+        if($filename = isFileExists($className, true)) {
+            $return['filePath'] = $filename;
             
-            return $filename;
+            if($includeFile) {
+                $return['fileLoaded'] = true;
+                require_once $filename;
+            }
+            
+            return self::_detectAlias($return);
         }
         
         $isFileExists = false;
         
-        if($filename = self::getVendorPath($className, $cacheKey))
+        if($filename = self::getVendorPath($className, $className))
             $isFileExists = true;
         
         $_className = preg_replace('~^'.preg_quote(self::system()->config['bootstrap']['applicationNameSpace']).'\\\~', '', $className, 1, $isApplication);
         
         if($isApplication) {
-            if(!$appsName) {
-                if($appsName = self::system()->bootInfo('application')['name']) {
-                    $cacheKey = $appsName.':'.$className;
-                    
-                    if($filename = isFileExists($cacheKey, true)) {
-                        if($includeFile)
-                            require_once $filename;
-                        
-                        return $filename;
-                    }
-                }
-            }
+            $return['isAppClass'] = true;
             
-            $filename = PATH_DETAILS['APPLICATIONS'].($appsName ?'/'.$appsName :'');
+            $filename = PATH_DETAILS['APPLICATION'];
             
             $_className = explode('\\', $_className);
             
             $file = array_pop($_className);
-            $module = array_shift($_className);
+            
+            if($_className) {
+                $module = array_shift($_className);
+                
+                if($file == 'Controller')
+                    $file = $module.$file;
+            }
+            else {
+                $module = $file;
+                $return['classAlias'] = $return['className'];
+                $return['className'] .= '\\'.$file;
+            }
             
             if($_className)
                 $file = implode('/', $_className).'/'.$file;
@@ -212,24 +254,36 @@ final class Core {
             $filename .= "/$module/$file.php";
         }
         
-        if($isFileExists || isFileExists($filename, $cacheKey, true)) {
-            if($includeFile)
-                require_once $filename;
+        if($isFileExists || isFileExists($filename, $className, true)) {
+            $return['filePath'] = $filename;
             
-            return $filename;
+            if($includeFile) {
+                $return['fileLoaded'] = true;
+                require_once $filename;
+            }
+            
+            return self::_detectAlias($return);
         }
         elseif(!$showException)
-            return false;
+            return [];
         else
-            throw new Exceptions\FileNotFound("File <font color='blue'>$filename</font> Not Found!");
+            throw new Exceptions\FileNotFound("File `$filename` Not Found!");
     }
     
     public static function getInstance($className, $args=[], $reload=false) {
+        if(isset(self::$_aliases[$className]))
+            $className = self::$_aliases[$className];
+        
         if(!$reload && isset(self::$_instances[$className]))
             return self::$_instances[$className];
         
-        if(!class_exists($className, false))
-            require_once self::isAvailable($className, '', false, true);
+        $info = [];
+        
+        if(!class_exists($className, false)) {
+            $info = self::isAvailable($className, false, true);
+            require_once $info['filePath'];
+            $className = $info['className'];
+        }
         
         $reflection = new \ReflectionClass($className);
         
@@ -238,22 +292,28 @@ final class Core {
         else
             $instance = $reflection->newInstance();
         
-        if($instance instanceof Application) {
-            $instance->setAppName(self::system()->bootInfo('application')['name']);
-            $instance->triggerOnInstanceCreateCallback();
-        }
+        self::$_instances[$className] =& $instance;
         
-        self::$_instances[$className] = $instance;
+        if($info && $info['classAlias'])
+            self::$_aliases[$info['classAlias']] = $className;
         
         return $instance;
     }
     
-    public static function setInstance($className, $instance) {
-        self::$_instances[$className] = $instance;
+    public static function setInstance($className, &$instance) {
+        self::$_instances[$className] =& $instance;
+    }
+    
+    public static function setAlias($className, $alias) {
+        self::$_aliases[$alias] = $className;
     }
     
     public static function allInstances() {
         return self::$_instances;
+    }
+    
+    public static function allAliases() {
+        return self::$_aliases;
     }
     
     final public function __clone() {
@@ -269,9 +329,10 @@ spl_autoload_register(function($className) {
     if(
         !Core::isInAutoLoaderSkipList($className)
             &&
-        ($filepath = Core::isAvailable($className, '', false, true))
+        ($info = Core::isAvailable($className, true, true))
     ) {
-        require_once $filepath;
+        if($info['classAlias'])
+            class_alias($info['className'], $info['classAlias'], false);
     }
 });
 
@@ -290,35 +351,31 @@ function cleanExit($param=null) {
 /**
  *  Call a callback function/method
  *  
- *  Callback can be {application-name}/{class-name}/{method-name}:{access-type}
+ *  Callback can be {class-name}/{method-name}:{access-type}
  *  
- *  {application-name} is optional, if not given then currently initiated application used
+ *  Example 1: Zamp\doCall(modules\Member\Controller::class.'/register');
+ *      => modules\Member\MemberController->register();
  *  
- *  Example 1: Zamp\doCall(app\Modules\Member\Controller\Member::class.'/register');
- *      => app\Modules\Member\Controller\Member->register();
+ *  Example 2: Zamp\doCall(modules\Member\Verification::class.'/check:static');
+ *      => modules\Member\Verification::check();
  *  
- *  Example 2: Zamp\doCall(app\Modules\Member\Verification::class.'/check:static');
- *      => app\Modules\Member\Verification::check();
- *  
- *  Example 3: Zamp\doCall(app\Modules\Member\Controller\Member::class.'/register', [
+ *  Example 3: Zamp\doCall(modules\Member\MemberController::class.'/register', [
  *                  'name' => 'Mathan',
  *                  'email' => 'phpmathan@gmail.com',
  *             ]);
- *      => app\Modules\Member\Controller\Member->register([
+ *      => modules\Member\MemberController->register([
 *               'name' => 'Mathan',
  *              'email' => 'phpmathan@gmail.com',
  *         ]);
  *  
- *  Example 4: Zamp\doCall('blog/'.app\Modules\Member\Controller\Member::class.'/register'); - this will call blog application module
+ *  Example 4: Zamp\doCall('myfunction', ['param1', 'param2']);
  *  
- *  Example 5: Zamp\doCall('myfunction', ['param1', 'param2']);
+ *  Example 5: Zamp\doCall([modules\Member\Controller::class, 'isLogged']) - called as modules\Member\MemberController::isLogged()
  *  
- *  Example 6: Zamp\doCall([app\Modules\Member\Controller\Member::class, 'isLogged']) - called as app\Modules\Member\Controller\Member::isLogged()
- *  
- *  Example 7: Zamp\doCall([
- *      app\Modules\Member\Controller\Member::obj(),
+ *  Example 6: Zamp\doCall([
+ *      modules\Member\Controller::obj(),
  *      'isLogged'
- *  ]); - called as app\Modules\Member\Controller\Member->isLogged()
+ *  ]); - called as modules\Member\MemberController->isLogged()
  *  
  *  Example 7: $anonymousFunction = function($p1, $p2) {}; Zamp\doCall($anonymousFunction, [1, 2]);
  */
@@ -331,30 +388,19 @@ function doCall($callback, $params=[]) {
             return call_user_func($callback);
         }
         
-        throw new \Exception("First parameter is not valid in Zamp\doCall() function call.");
+        throw new Exceptions\Callback("First parameter is not valid in Zamp\doCall() function call.", 1);
     }
     
     $callback = explode('/', trim($callback, '/ '));
     $weight = count($callback);
     
-    if($weight > 3)
-        throw new \Exception("Invalid Callback/Function/Method (<font color='red'>$callback</font>) parsed in Zamp\doCall() function!");
+    if($weight > 2)
+        throw new Exceptions\Callback("Invalid Callback/Function/Method `$callback` parsed in Zamp\doCall() function!", 2);
     
     $className = array_shift($callback);
     $functionName = array_shift($callback);
     
-    if($weight == 3) {
-        $appsName = $className;
-        $className = $functionName;
-        $functionName = array_shift($callback);
-        
-        $functionName = explode(':static', $functionName);
-        $forStaticCall = isset($functionName[1]);
-        $functionName = $functionName[0];
-        
-        $instance = Core::system()->getAppClass($appsName, $className, $forStaticCall);
-    }
-    elseif($weight == 2) {
+    if($weight == 2) {
         $functionName = explode(':static', $functionName);
         
         if(isset($functionName[1]))
@@ -376,11 +422,11 @@ function doCall($callback, $params=[]) {
 
 // Redirect to URL
 function urlRedirect($url, $placeHolders=[]) {
-    if(!preg_match('~^https?\://i~', $url))
-        throw new \Exception('Invalid URL.');
-    
     $url = replacePlaceHolders($url, $placeHolders);
     $url = str_replace(["\r", "\n"], '', $url);
+    
+    if(!preg_match('~^https?\://~i', $url))
+        throw new \Exception('Invalid URL.');
     
     if($callback = Core::headerRedirectCallbackGet())
         doCall($callback, [$url]);
@@ -399,7 +445,6 @@ function replacePlaceHolders($str, $placeHolders=[]) {
     
     $placeHolders = General::arrayMergeRecursiveDistinct([
         '#ROOT_URL#' => $system->rootUrl,
-        '#APPLICATION_URL#' => $system->applicationUrl,
         '#CURRENT_URL#' => $system->currentUrl,
     ], $placeHolders);
     
@@ -513,7 +558,7 @@ function setConf($key='', $value, $merge=true, $customConfig=null) {
 }
 
 // Get module's configuration file path
-function getConfFile($confFileName, $moduleName, $appName='') {
+function getConfFile($confFileName, $moduleName) {
     static $checkedPaths = [];
     
     $checkKey = $moduleName.':'.$confFileName;
@@ -521,23 +566,18 @@ function getConfFile($confFileName, $moduleName, $appName='') {
     if(!isset($checkedPaths[$checkKey]))
         $checkedPaths[$checkKey] = [];
     
-    if(!$appName)
-        $appName = Core::system()->bootInfo('application')['name'];
-    
-    $cacheKey = ($appName ?$appName.':' :'').$moduleName.':'.$confFileName;
+    $cacheKey = $moduleName.':'.$confFileName;
     
     if($confFile = isFileExists($cacheKey, true))
         return $confFile;
     
-    $appFolder = PATH_DETAILS['APPLICATIONS'].'/'.$appName;
-    
-    $confFile = $appFolder.'/'.Core::system()->config['bootstrap']['configFirstCheckUnder'].'/Config/'.$confFileName.'.noauto.php';
+    $confFile = PATH_DETAILS['APPLICATION'].'/'.Core::system()->config['bootstrap']['configFirstCheckUnder'].'/Config/'.$confFileName.'.noauto.php';
     $checkedPaths[$checkKey][$confFile] = 1;
     
     if($filePath = isFileExists($confFile, $cacheKey))
         return $filePath;
     
-    $confFile = $appFolder.'/'.$moduleName.'/Config/'.$confFileName.'.noauto.php';
+    $confFile = PATH_DETAILS['APPLICATION'].'/'.$moduleName.'/Config/'.$confFileName.'.noauto.php';
     
     if(!isset($checkedPaths[$checkKey][$confFile])) {
         $checkedPaths[$checkKey][$confFile] = 1;
@@ -546,17 +586,12 @@ function getConfFile($confFileName, $moduleName, $appName='') {
             return $filePath;
     }
     
-    $bootedApp = Core::system()->bootInfo('application')['name'];
-    
-    if($bootedApp != $appName)
-        return getConfFile($confFileName, $moduleName, $bootedApp);
-    
-    throw new Exceptions\FileNotFound('Configuration file not found in any of the following path.<br/>- '.implode('<br/>- ', array_keys($checkedPaths[$checkKey])));
+    throw new Exceptions\FileNotFound('Configuration file not found in any of the following path.'.NEXT_LINE.'- '.implode(NEXT_LINE.'- ', array_keys($checkedPaths[$checkKey])));
 }
 
 function setSession($key, $value, $unsetBeforeSet=false) {
     if(!Session::isStarted())
-        throw new Exceptions\Session('Session is not yet started!');
+        throw new Exceptions\Session('Session is not yet started!', 1);
     
     $handle = function() use ($key, $value, $unsetBeforeSet) {
         $key = explode('/', $key);
@@ -577,10 +612,16 @@ function setSession($key, $value, $unsetBeforeSet=false) {
 }
 
 function getSession($key='') {
+    if(!Session::isStarted())
+        throw new Exceptions\Session('Session is not yet started!', 1);
+    
     return $key ?General::getMultiArrayValue(explode('/', $key), $_SESSION) :$_SESSION;
 }
 
 function deleteSession($key='') {
+    if(!Session::isStarted())
+        throw new Exceptions\Session('Session is not yet started!', 1);
+    
     $handle = function() use ($key) {
         if($key)
             return General::unsetMultiArrayValue(explode('/', $key), $_SESSION);

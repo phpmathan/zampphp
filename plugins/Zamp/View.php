@@ -23,6 +23,56 @@ class View extends Base {
         return $this->_internal['fileExtension'];
     }
     
+    public function layoutFile($file=null) {
+        if($file !== null) {
+            return $this->_internal['layoutFile'] = [
+                'basePath' => $this->getThemeName().'/'.$file.'.'.$this->getFileExtension(),
+            ];
+        }
+        
+        if(empty($this->_internal['layoutFile'])) {
+            $this->_internal['layoutFile'] = [
+                'basePath' => $this->getThemeName().'/layout.'.$this->getFileExtension(),
+            ];
+        }
+        
+        if(!empty($this->_internal['layoutFile']['baseFolder']))
+            return $this->_internal['layoutFile'];
+        
+        $basePath = $this->_internal['layoutFile']['basePath'];
+        
+        $module = Core::system()->config['bootstrap']['viewFirstCheckUnder'];
+        $baseFolder = PATH_DETAILS['APPLICATION'].'/'.$module;
+        $fullPath = $baseFolder.'/View/'.$basePath;
+        
+        if(isFileExists($fullPath, 'view1:'.$basePath)) {
+            $this->_internal['layoutFile']['baseFolder'] = $baseFolder.'/View';
+            $this->_internal['layoutFile']['fullPath'] = $fullPath;
+            $this->_internal['layoutFile']['underModule'] = $module;
+            
+            return $this->_internal['layoutFile'];
+        }
+        
+        list($modulePath,) = explode('/Controller/', Core::system()->bootInfo('controller')['path'], 2);
+        
+        if($modulePath == $baseFolder)
+            throw new Exceptions\ViewNotFound("Layout view file not found in following path.".NEXT_LINE."- {$fullPath}");
+        
+        $baseFolder = $modulePath;
+        $module = substr(strrchr($baseFolder, '/'), 1);
+        $fullPath2 = $baseFolder.'/View/'.$basePath;
+        
+        if(isFileExists($fullPath2, 'view2:'.$basePath)) {
+            $this->_internal['layoutFile']['baseFolder'] = $baseFolder.'/View';
+            $this->_internal['layoutFile']['fullPath'] = $fullPath2;
+            $this->_internal['layoutFile']['underModule'] = $module;
+            
+            return $this->_internal['layoutFile'];
+        }
+        
+        throw new Exceptions\ViewNotFound("Layout view file not found in any of the following path.".NEXT_LINE."- {$fullPath}".NEXT_LINE."- {$fullPath2}");
+    }
+    
     public function actionFile($controller=null, $action=null) {
         if($controller === null)
             return $this->_internal['actionFile'] ?? [];
@@ -46,14 +96,12 @@ class View extends Base {
         
         $basePath = $this->_internal['actionFile']['basePath'];
         
-        $appFolder = Core::system()->bootInfo('application')['path'];
-        
         $module = Core::system()->config['bootstrap']['viewFirstCheckUnder'];
-        $baseFolder = $appFolder.'/'.$module;
+        $baseFolder = PATH_DETAILS['APPLICATION'].'/'.$module;
         $fullPath = $baseFolder.'/View/'.$basePath;
         
-        if(isFileExists($fullPath, 'view:'.$basePath)) {
-            $this->_internal['actionFile']['baseFolder'] = $baseFolder;
+        if(isFileExists($fullPath, 'view1:'.$basePath)) {
+            $this->_internal['actionFile']['baseFolder'] = $baseFolder.'/View';
             $this->_internal['actionFile']['fullPath'] = $fullPath;
             $this->_internal['actionFile']['underModule'] = $module;
             
@@ -69,8 +117,8 @@ class View extends Base {
         $module = substr(strrchr($baseFolder, '/'), 1);
         $fullPath2 = $baseFolder.'/View/'.$basePath;
         
-        if(isFileExists($fullPath2, 'view:'.$basePath)) {
-            $this->_internal['actionFile']['baseFolder'] = $baseFolder;
+        if(isFileExists($fullPath2, 'view2:'.$basePath)) {
+            $this->_internal['actionFile']['baseFolder'] = $baseFolder.'/View';
             $this->_internal['actionFile']['fullPath'] = $fullPath2;
             $this->_internal['actionFile']['underModule'] = $module;
             

@@ -1,6 +1,6 @@
 <?php
 
-namespace app\Modules\Core;
+namespace modules\App;
 
 class IndexController extends \Zamp\Controller {
     public function index() {

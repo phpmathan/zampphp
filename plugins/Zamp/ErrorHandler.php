@@ -85,7 +85,7 @@ class ErrorHandler extends Base {
             ];
         }
         
-        $saveErrorIntoFolder = (isset($errorHandlerConfig['saveErrorIntoFolder'])) ?rtrim($errorHandlerConfig['saveErrorIntoFolder'], '/') :PATH_DETAILS['PROJECT'].'/app_errors';
+        $saveErrorIntoFolder = (isset($errorHandlerConfig['saveErrorIntoFolder'])) ?rtrim($errorHandlerConfig['saveErrorIntoFolder'], '/') :PATH_DETAILS['TEMP'].'/errors';
         
         if(!is_dir($saveErrorIntoFolder))
             mkdir($saveErrorIntoFolder, 0777, true);

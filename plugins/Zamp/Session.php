@@ -3,6 +3,7 @@
 namespace Zamp;
 
 class Session implements \SessionHandlerInterface, \SessionIdInterface {
+    private static $_handlerObjs = [];
     private static $_info = [
         'isStarted' => false,
         'profile' => 'default',
@@ -14,7 +15,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
         ],
     ];
     
-    private static function _prepare($config) {
+    private static function _prepare($config, $profile) {
         $default = session_get_cookie_params();
         
         $config = array_merge([
@@ -36,12 +37,15 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
             
             if(!is_dir($savePath)) {
                 if(!mkdir($savePath, 0777, true))
-                    throw new Exceptions\FolderCreateFailed("Session `savePath` folder <font color='blue'>{$savePath}</font> creation failed.");
+                    throw new Exceptions\FolderCreateFailed("Session `savePath` folder `{$savePath}` creation failed.");
             }
             elseif(!is_writable($savePath))
-                throw new Exceptions\PathNotWritable("Session `savePath` folder <font color='blue'>{$savePath}</font> is not writable.");
+                throw new Exceptions\PathNotWritable("Session `savePath` folder `{$savePath}` is not writable.");
             
             session_save_path($savePath);
+        }
+        else {
+            $config['savePath'] = null;
         }
         
         ini_set('session.use_trans_sid', false);
@@ -84,8 +88,10 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
         if(isset($config['cacheExpire']))
             session_cache_expire($config['cacheExpire']);
         
-        if($config['handler'] != 'file' && $config['handler'] != 'php')
-            $config = doCall($config['handler'], [$config]);
+        if($config['handler'] != 'file' && $config['handler'] != 'php') {
+            self::$_handlerObjs[$profile] = doCall($config['handler'], [&$config, $profile]);
+            session_set_save_handler(self::$_handlerObjs[$profile], true);
+        }
         
         session_start();
         
@@ -95,22 +101,22 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
         return $config;
     }
     
-    final public static function start($config) {
+    final public static function start($config=[]) {
         if(self::isStarted())
-            throw new Exceptions\Session('Session is already started!');
-        
-        register_shutdown_function('\session_write_close');
-        
-        Core::cleanExitCallbackSet('session_write_close', function() {
-            \session_write_close();
-        });
+            throw new Exceptions\Session('Session is already started!', 2);
         
         self::$_info['isStarted'] = true;
         
         self::$_info['profiles']['default'] = [
             'status' => 'opened',
-            'config' => self::_prepare($config),
+            'config' => self::_prepare($config, 'default'),
         ];
+        
+        register_shutdown_function('\session_write_close');
+        
+        Core::cleanExitCallbackSet('session_write_close', function() {
+            session_write_close();
+        });
     }
     
     final public static function info() {
@@ -127,7 +133,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
     
     final public static function profileSwitch($profile, $config=[]) {
         if(!self::isStarted())
-            throw new Exceptions\Session('Session is not yet started!');
+            throw new Exceptions\Session('Session is not yet started!', 1);
         
         if(self::$_info['profile'] == $profile)
             return false;
@@ -144,7 +150,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
         
         self::$_info['profiles'][$profile] = [
             'status' => 'opened',
-            'config' => self::_prepare($config),
+            'config' => self::_prepare($config, $profile),
         ];
         
         return true;
@@ -174,6 +180,9 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
         ini_set('session.use_cookies', false);
         ini_set('session.use_trans_sid', false);
         ini_set('session.cache_limiter', null);
+        
+        if(isset(self::$_handlerObjs[$profile]))
+            session_set_save_handler(self::$_handlerObjs[$profile], true);
         
         $config = self::profileInfo($profile)['config'];
         

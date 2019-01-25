@@ -14,7 +14,6 @@ class System extends Base {
     
     // URLs
     public $rootUrl;
-    public $applicationUrl;
     public $currentUrl;
     
     // Internal
@@ -35,8 +34,7 @@ class System extends Base {
     public $_runTimeProperties = [];
     
     /**
-     *  restricted properties to avoid problem when loading cross application and
-     *  setting property to framework object
+     *  restricted properties to avoid problem setting property to framework object
      */
     public $_restrictedProperties = [
         '_runTimeProperties' => 'Array',
@@ -48,13 +46,12 @@ class System extends Base {
         'cache' => 'Object',
         
         'rootUrl' => 'String',
-        'applicationUrl' => 'String',
         'currentUrl' => 'String',
     ];
     
     // Boot info
     private $_bootInfo = [
-        'requested_url' => '',
+        'preparedUrl' => '',
         'controller' => [
             'request' => '',
             'class' => '',
@@ -63,15 +60,10 @@ class System extends Base {
         'action' => '',
         'query' => [],
         'routeInfo' => [
-            /*'original_url' => '',
-            'rule_matched' => '',
-            'rule_value' => '',
-            'routed_url' => '',*/
-        ],
-        'application' => [
-            'name' => '',
-            'path' => '',
-            'isDefault' => true,
+            /*'originalUrl' => '',
+            'ruleMatched' => '',
+            'ruleValue' => '',
+            'routedUrl' => '',*/
         ],
         'isRouteStopped' => false,
     ];
@@ -86,7 +78,7 @@ class System extends Base {
     }
     
     public function __call($funName, $args) {
-        $errorDialog = "Undefined function <font color='blue'>$funName</font> called with the following arguments";
+        $errorDialog = "Undefined function `$funName` called with the following arguments".NEXT_LINE;
         $errorDialog .= '<pre>'.var_export($args, true).'</pre>';
         
         throw new Exceptions\UndefinedMethod($errorDialog);
@@ -104,12 +96,16 @@ class System extends Base {
     
     public function setProperty($name, $type, $value) {
         if(isset($this->_restrictedProperties[$name]))
-            throw new Exceptions\ReservedProperty("Property <font color='red'>$name</font> can not be set due to restricted properties.");
+            throw new Exceptions\ReservedProperty("Property `$name` can not be set due to restricted properties.");
         
         $this->_runTimeProperties[$name] = [
             'type' => ucfirst(strtolower($type)),
             'data' => $value,
         ];
+    }
+    
+    public function getProperty($name) {
+        return $this->_runTimeProperties[$name] ?? null;
     }
     
     public function bootstrap($config) {
@@ -128,9 +124,6 @@ class System extends Base {
         if(!$this->isExtensionLoaded($config['requiredModules']))
             return $this;
         
-        if(empty($config['applications']) || (array) $config['applications'] !== $config['applications'])
-            throw new Exceptions\Bootstrap('Applications not defined');
-        
         $this->view = Core::getInstance(View::class);
         $this->view->setThemeName($config['view']['themeName']);
         $this->view->setFileExtension($config['view']['fileExtension']);
@@ -145,7 +138,7 @@ class System extends Base {
     }
     
     private function _loadCoreModuleDefaultConfig() {
-        $moduleConfig = $this->_bootInfo['application']['path'].'/Core/Config';
+        $moduleConfig = PATH_DETAILS['APPLICATION'].'/Core/Config';
         
         $noAuto = glob($moduleConfig.'/*.noauto.php');
         $all = glob($moduleConfig.'/*.php');
@@ -164,17 +157,11 @@ class System extends Base {
         
         $this->config = General::arrayMergeRecursiveDistinct($this->config, $config ?: []);
         
-        if($this->config['bootstrap']['onModuleConfigLoadedCallback']) {
-            doCall($this->config['bootstrap']['onModuleConfigLoadedCallback'], [
-                'Core', $this->_bootInfo['application']['name'], $configFiles
-            ]);
-        }
+        if($this->config['bootstrap']['onModuleConfigLoadedCallback'])
+            doCall($this->config['bootstrap']['onModuleConfigLoadedCallback'], ['Core', $configFiles]);
     }
     
-    public function checkAndLoadConfiguration($confToCheck, $confFileName, $moduleName, $appName='') {
-        if(!$appName)
-            $appName = $this->_bootInfo['application']['name'];
-        
+    public function checkAndLoadConfiguration($confToCheck, $confFileName, $moduleName) {
         static $_loadedConf = [];
         
         if(isset($_loadedConf[$confToCheck]))
@@ -183,7 +170,7 @@ class System extends Base {
         if(getConf($confToCheck))
             return $_loadedConf[$confToCheck] = false;
         
-        $configFile = getConfFile($confFileName, $moduleName, $appName);
+        $configFile = getConfFile($confFileName, $moduleName);
         
         if(isset($this->_internal['loadedConfigFiles'][$configFile]))
             return $_loadedConf[$confToCheck] = false;
@@ -193,11 +180,8 @@ class System extends Base {
         
         $this->config = General::arrayMergeRecursiveDistinct($this->config, $config ?: []);
         
-        if($this->config['bootstrap']['onModuleConfigLoadedCallback']) {
-            doCall($this->config['bootstrap']['onModuleConfigLoadedCallback'], [
-                $moduleName, $appName, [$configFile]
-            ]);
-        }
+        if($this->config['bootstrap']['onModuleConfigLoadedCallback'])
+            doCall($this->config['bootstrap']['onModuleConfigLoadedCallback'], [$moduleName, [$configFile]]);
         
         return $_loadedConf[$confToCheck] = true;
     }
@@ -247,7 +231,7 @@ class System extends Base {
                 if($handler = $obj->getMethodErrorHandler()) {
                     if(!method_exists($obj, $handler)) {
                         if($this->config['bootstrap']['isDevelopmentPhase']) {
-                            throw new Exceptions\UndefinedMethod("Method access error reporting failed. Method name `{$handler}` not found in <font color='blue'>{$this->_bootInfo['controller']['class']}</font>");
+                            throw new Exceptions\UndefinedMethod("Method access error reporting failed. Method name `{$handler}` not found in `{$this->_bootInfo['controller']['class']}`");
                         }
                         else
                             $this->showErrorPage(500);
@@ -257,13 +241,13 @@ class System extends Base {
                 }
                 elseif($this->config['bootstrap']['isDevelopmentPhase']) {
                     if($isOk == 'internalMethod') {
-                        throw new Exceptions\RestrictedAccess("Method begins with `_` are considered as internal use only, and can not be accessed via routing.");
+                        throw new Exceptions\RestrictedAccess("Method begins with `_` are considered as internal use only, and can not be accessed via routing.", 1);
                     }
                     elseif($isOk == 'blocked') {
-                        throw new Exceptions\RestrictedAccess("<font color='blue'>{$this->_bootInfo['controller']['class']}->{$action}()</font> is in `_blockedMethods` list.");
+                        throw new Exceptions\RestrictedAccess("`{$this->_bootInfo['controller']['class']}->{$action}()` is in `_blockedMethods` list.", 2);
                     }
                     else {
-                        throw new Exceptions\UndefinedMethod("<font color='blue'>{$this->_bootInfo['controller']['class']}->{$action}()</font> is not defined.");
+                        throw new Exceptions\UndefinedMethod("`{$this->_bootInfo['controller']['class']}->{$action}()` is not defined.");
                     }
                 }
                 else {
@@ -328,116 +312,59 @@ class System extends Base {
         cleanExit();
     }
     
-    public function getAppClass($appName, $className, $forStaticCall=false) {
-        static $_loadedAppClasses = [];
+    public function className($name) {
+        $name = preg_split('/(?=[A-Z])/', $name);
         
-        $cacheKey = $appName.':'.$className;
-        
-        if(isset($_loadedAppClasses[$cacheKey])) {
-            $instance = Core::getInstance($className);
-            $instance->setAppName($appName);
-            
-            return $forStaticCall ?$className :$instance;
-        }
-        
-        Core::isAvailable($className, $appName, true, true);
-        
-        $reflection = new \ReflectionClass($className);
-        $instance = $reflection->newInstance();
-        $instance->setAppName($appName);
-        $instance->triggerOnInstanceCreateCallback();
-        
-        $_loadedAppClasses[$cacheKey] = 1;
-        
-        Core::setInstance($className, $instance);
-        
-        return $forStaticCall ?$className :$instance;
-    }
-    
-    private function _prepareController($controller) {
-        $controller = preg_split('/(?=[A-Z])/', $controller);
-        
-        if(!isset($controller[1]))
-            $controller = ucfirst($controller[0]);
+        if(!isset($name[1]))
+            $name = ucfirst($name[0]);
         else {
             // starting with capital letter
-            if(!$controller[0])
-                array_shift($controller);
+            if(!$name[0])
+                array_shift($name);
             else
-                $controller[0][0] = strtoupper($controller[0][0]);
+                $name[0][0] = strtoupper($name[0][0]);
             
-            $controller = implode('', $controller);
+            $name = implode('', $name);
         }
         
-        return $controller;
+        return $name;
     }
     
     private function _setController() {
         $controller = $this->_bootInfo['controller']['request'] ?: $this->config['bootstrap']['defaultController'];
         $action = $this->_bootInfo['action'] ?: $this->config['bootstrap']['defaultAction'];
         
-        $controller = $this->_prepareController($controller);
-        
-        if(($application = $this->config['bootstrap']['applications'][$controller] ?? '')) {
-            $this->_bootInfo['application']['name'] = $application;
-            $this->_bootInfo['application']['isDefault'] = false;
-            
-            $controller = $this->_prepareController($action);
-            $action = $this->config['bootstrap']['defaultAction'];
-            
-            if(!empty($this->_bootInfo['query'][0])) {
-                $action = $this->_bootInfo['query'][0];
-                unset($this->_bootInfo['query'][0]);
-                
-                $query = [];
-                $next = 1;
-                $skip = false;
-                
-                foreach($this->_bootInfo['query'] as $k => $v) {
-                    if($skip) {
-                        $query[$k] = $v;
-                        continue;
-                    }
-                    
-                    if($k === $next) {
-                        $query[$k-1] = $v;
-                        $next++;
-                    }
-                    else {
-                        $skip = true;
-                        $query[$k] = $v;
-                    }
-                }
-                
-                $this->_bootInfo['query'] = $_GET = $query;
-            }
-        }
-        elseif(($application = $this->config['bootstrap']['applications']['*'] ?? '')) {
-            $this->_bootInfo['application']['name'] = $application;
-            $this->_bootInfo['application']['isDefault'] = true;
-        }
+        $controller = $this->className($controller);
         
         $this->_bootInfo['controller']['request'] = $controller;
         $this->_bootInfo['action'] = strtolower($action);
         
-        $this->_bootInfo['application']['path'] = PATH_DETAILS['APPLICATIONS'].($application ?'/'.$application :'');
-        
         $this->_bootInfo['controller']['class'] = $this->config['bootstrap']['applicationNameSpace'].'\\Core\\'.$controller.'Controller';
         
-        $mappingFile = $this->_bootInfo['application']['path'].'/classMapping.php';
+        $mappingFile = PATH_DETAILS['APPLICATION'].'/classMapping.php';
         
-        if(isFileExists($mappingFile, ($application ?$application.':' :'').'classMapping')) {
-            $mapping = require $mappingFile;
+        if(isFileExists($mappingFile, 'classMapping')) {
+            $mapping = require_once $mappingFile;
             
             if(isset($mapping[$controller])) {
                 $this->_bootInfo['controller']['class'] = $this->config['bootstrap']['applicationNameSpace'].'\\'.$mapping[$controller].'\\'.$controller.'Controller';
             }
         }
         
+        loadController:
+        
         try {
-            $this->_bootInfo['controller']['path'] = Core::isAvailable($this->_bootInfo['controller']['class'], $application, false, true);
+            $info = Core::isAvailable($this->_bootInfo['controller']['class'], false, true);
+            $this->_bootInfo['controller']['path'] = $info['filePath'];
         }
         catch(\Exception $e) {
+            $newController = $this->config['bootstrap']['applicationNameSpace'].'\\'.$controller.'\\'.$controller.'Controller';
+            
+            if($newController != $this->_bootInfo['controller']['class']) {
+                $this->_bootInfo['controller']['class'] = $newController;
+                goto loadController;
+            }
+            
             if($this->config['bootstrap']['isDevelopmentPhase'])
                 throw new Exceptions\ControllerNotFound($e->getMessage());
             
@@ -459,19 +386,19 @@ class System extends Base {
         cleanExit();
     }
     
-    public function checkRouterAndBuild($requestedUrl, $routerConfig = []) {
+    public function checkRouterAndBuild($preparedUrl, $routerConfig = []) {
         $route = $routerConfig ?: ($this->config['bootstrap']['router'] ?? []);
         
-        $this->_bootInfo['requested_url'] = $queryString = ltrim($requestedUrl, '/');
+        $this->_bootInfo['preparedUrl'] = $queryString = ltrim($preparedUrl, '/');
         
         if($route && (array) $route === $route) {
             foreach($route as $condition => $value) {
-                if(preg_match($condition, $requestedUrl, $matches)) {
+                if(preg_match($condition, $this->_bootInfo['preparedUrl'], $matches)) {
                     $this->_bootInfo['routeInfo'] = [
-                        'original_url' => $queryString,
-                        'rule_matched' => $condition,
-                        'rule_value' => $value,
-                        'routed_url' => '',
+                        'originalUrl' => $queryString,
+                        'ruleMatched' => $condition,
+                        'ruleValue' => $value,
+                        'routedUrl' => '',
                     ];
                     
                     if(preg_match_all("/#(\d+)#/", $value, $subMatches)) {
@@ -479,7 +406,7 @@ class System extends Base {
                             $value = str_replace("#$v#", $matches[$v], $value);
                     }
                     
-                    $this->_bootInfo['routeInfo']['routed_url'] = $this->_bootInfo['requested_url'] = $queryString = $value;
+                    $this->_bootInfo['routeInfo']['routedUrl'] = $this->_bootInfo['preparedUrl'] = $queryString = $value;
                     break;
                 }
             }
@@ -509,26 +436,30 @@ class System extends Base {
             ksort($GetQueryString, SORT_STRING);
             $this->_bootInfo['query'] = $GetQueryString;
             
-            $requestedUrl = [];
+            $preparedUrl = [];
             
             if(!empty($this->_bootInfo['controller']['request'])) {
-                $requestedUrl[] = $this->_bootInfo['controller']['request'];
+                $preparedUrl[] = $this->_bootInfo['controller']['request'];
                 
                 if(!empty($this->_bootInfo['action']))
-                    $requestedUrl[] = $this->_bootInfo['action'];
+                    $preparedUrl[] = $this->_bootInfo['action'];
             }
             
-            $requestedUrl[] = $this->request->getQueryUrl(true, '&', $GetQueryString);
+            $preparedUrl[] = $this->request->getQueryUrl(true, '&', $GetQueryString);
             
-            $requestedUrl = implode('/', $requestedUrl);
+            $preparedUrl = implode('/', $preparedUrl);
             
             if(!isset($GetQueryString[0]))
-                $requestedUrl = preg_replace('~/\?~', '?', $requestedUrl, 1);
+                $preparedUrl = preg_replace('~/\?~', '?', $preparedUrl, 1);
             
-            $this->_bootInfo['requested_url'] = $requestedUrl;
+            $this->_bootInfo['preparedUrl'] = $preparedUrl;
         }
         
         return $this->_bootInfo;
+    }
+    
+    public function urlPath() {
+        return $this->_bootInfo['routeInfo']['originalUrl'] ?? $this->_bootInfo['preparedUrl'];
     }
     
     public function updateRoutingValues($routingValues, $updateCurrentUrl=true) {
@@ -538,24 +469,19 @@ class System extends Base {
         $this->_setController();
         
         $this->rootUrl = $this->_getRootURL().'/';
-        $this->currentUrl = $this->rootUrl.$routingValues['requested_url'];
-        $this->applicationUrl = $this->rootUrl;
-        
-        if(!$this->_bootInfo['application']['isDefault'])
-            $this->applicationUrl .= $this->_bootInfo['application']['name'].'/';
+        $this->currentUrl = $this->rootUrl.$this->urlPath();
         
         $themeName = $this->view->getThemeName();
         
         $this->view->set([
             'app' => [
                 'rootUrl' => $this->rootUrl,
-                'applicationUrl' => $this->applicationUrl,
                 'currentUrl' => $this->currentUrl,
                 'assets' => [
-                    'js' => $this->applicationUrl."js/$themeName/",
-                    'css' => $this->applicationUrl."css/$themeName/",
-                    'images' => $this->applicationUrl."images/$themeName/",
-                    'libs' => $this->applicationUrl.'libs/',
+                    'js' => $this->rootUrl."js/$themeName/",
+                    'css' => $this->rootUrl."css/$themeName/",
+                    'images' => $this->rootUrl."images/$themeName/",
+                    'libs' => $this->rootUrl.'libs/',
                 ],
             ],
         ], true);

@@ -3,41 +3,15 @@
 namespace Zamp;
 
 class Application extends Base {
-    private $_appName;
-    protected $_runTimeCache = [];
     /*
-    protected $onInstanceCreate = [
-        'call' => [$this, 'methodName'],
-        'call' => [self::class, 'methodName'],
-        'call' function(...$params) {
-            
-        },
-        'call' => ModelName::class.'/method',
-        'args' => ['A', 'B', 'C'],
+    // To set custom configuration path and its file name
+    protected static $_moduleConfig = [
+        'namespace' => 'modules/Core/mongoDb',
+        'fileName' => 'Mongo',
     ];
     */
     
-    final public function triggerOnInstanceCreateCallback() {
-        if(!isset($this->onInstanceCreate))
-            return;
-        
-        // call the construct hook
-        if($this->onInstanceCreate)
-            doCall($this->onInstanceCreate['call'], $this->onInstanceCreate['args'] ?? []);
-        
-        // Cleanup
-        unset($this->onInstanceCreate);
-    }
-    
-    final public function setAppName($appName) {
-        $this->_appName = $appName;
-    }
-    
-    final public function getAppName() {
-        return $this->_appName;
-    }
-    
-    final public static function getModuleName() {
+    final public static function moduleName() {
         static $moduleName = [];
         
         $className = static::class;
@@ -50,7 +24,7 @@ class Application extends Base {
         return $moduleName[$className];
     }
     
-    final public static function getModulePath() {
+    final public static function modulePath() {
         static $modulePath = [];
         
         $className = static::class;
@@ -66,60 +40,118 @@ class Application extends Base {
         return $modulePath[$className];
     }
     
+    /**
+     *  To get module's configuration
+     *  Core::moduleConfig();
+     *  Core::moduleConfig('configKey');
+     *  
+     *  To set module's configuration
+     *  Core::moduleConfig('configKey', 'appendValue');
+     *  Core::moduleConfig('configKey', 'replaceValue', false);
+     */
     final public static function moduleConfig($key=null, $value=null, $merge=true) {
-        static $_loadedConfig = [];
+        $moduleName = $confFileName = self::moduleName();
+        $namespace = 'modules/'.$moduleName;
         
-        $moduleName = self::getModuleName();
-        $configPath = 'modules/'.$moduleName;
-        
-        if(!isset($_loadedConfig[$moduleName])) {
-            $obj = Core::getInstance(static::class);
-            $_loadedConfig[$moduleName] = Core::system()->checkAndLoadConfiguration(
-                $configPath, $moduleName, $moduleName, $obj->getAppName()
-            );
+        if(!empty(static::$_moduleConfig)) {
+            $confFileName = static::$_moduleConfig['fileName'];
+            $namespace = static::$_moduleConfig['namespace'];
         }
+        
+        Core::system()->checkAndLoadConfiguration($namespace, $confFileName, $moduleName);
         
         if($key)
-            $configPath .= '/'.$key;
+            $namespace .= '/'.$key;
         
         if($value === null)
-            return getConf($configPath);
+            return getConf($namespace);
         
-        setConf($configPath, $value, $merge);
-        
-        return $value;
-    }
-    
-    public static function runTimeCache($key=null, $value=null, $merge=true) {
-        $obj = Core::getInstance(static::class);
-        
-        if($value === null) {
-            if($key === null)
-                return $obj->_runTimeCache;
-            
-            return $obj->_runTimeCache[$key] ?? General::getMultiArrayValue(explode('/', $key), $obj->_runTimeCache);
-        }
-        
-        if($merge)
-            $obj->_runTimeCache = General::arrayMergeRecursiveDistinct($obj->_runTimeCache, General::setMultiArrayValue($key, $value));
-        else
-            $obj->_runTimeCache = General::setMultiArrayValue($key, $value, $obj->_runTimeCache);
+        setConf($namespace, $value, $merge);
         
         return $value;
     }
     
-    public function _($className, $forStaticCall=false) {
-        $applicationNameSpace = Core::system()->config['bootstrap']['applicationNameSpace'];
+    /**
+     *  To get module's runtime cache
+     *  Core::moduleRunTime();
+     *  Core::moduleRunTime('cacheKey');
+     *  
+     *  To set module's runtime cache
+     *  Core::moduleRunTime('cacheKey', 'appendValue');
+     *  Core::moduleRunTime('cacheKey', 'replaceValue', false);
+     */
+    final public static function moduleRunTime($key=null, $value=null, $merge=true) {
+        static $cache = [];
         
-        if(strpos($className, $applicationNameSpace) !== 0)
-            $className = $applicationNameSpace.'\\'.$className;
+        $namespace = 'modules'.self::moduleName();
         
-        $obj = $forStaticCall ?(Core::system()->bootInfo('application')['name'] != $this->_appName) :true;
+        if($key)
+            $namespace .= '/'.$key;
         
-        if($obj)
-            $obj = Core::system()->getAppClass($this->getAppName(), $className, false);
+        if($value === null)
+            return getConf($namespace, $cache);
         
-        return $forStaticCall ?$className :$obj;
+        $cache = setConf($namespace, $value, $merge, $cache);
+        
+        return $value;
+    }
+    
+    /**
+     *  To get module's cache
+     *  Core::moduleCache();
+     *  Core::moduleCache('cacheKey');
+     *  
+     *  To set module's cache
+     *  Core::moduleCache('cacheKey', 'appendValue');
+     *  
+     *  To delete module's cache
+     *  Core::moduleCache(null, '--');
+     *  Core::moduleCache('cacheKey', '--');
+     */
+    final public static function moduleCache($key=null, $value=null, $ttl=null) {
+        $namespace = 'modules'.self::moduleName();
+        
+        if($key)
+            $namespace .= '/'.$key;
+        
+        if($value === '--')
+            return Core::system()->cache->delete($namespace);
+        
+        if($value === null)
+            return Core::system()->cache->get($namespace);
+        
+        Core::system()->cache->set($namespace, $value, $ttl);
+        
+        return $value;
+    }
+    
+    /**
+     *  To get module's session
+     *  Core::moduleSession();
+     *  Core::moduleSession('cacheKey');
+     *  
+     *  To set module's session
+     *  Core::moduleSession('cacheKey', 'appendValue');
+     *  
+     *  To delete module's session
+     *  Core::moduleSession(null, '--');
+     *  Core::moduleSession('cacheKey', '--');
+     */
+    final public static function moduleSession($key=null, $value=null, $unsetBeforeSet=false) {
+        $namespace = 'modules/'.self::moduleName();
+        
+        if($key)
+            $namespace .= '/'.$key;
+        
+        if($value === '--')
+            return deleteSession($namespace);
+        
+        if($value === null)
+            return getSession($namespace);
+        
+        setSession($namespace, $value, $unsetBeforeSet);
+        
+        return $value;
     }
     
     public function __call($fnName, $args) {
@@ -146,7 +178,7 @@ class Application extends Base {
         $className = static::class;
         $className = substr($className, 0, strrpos($className, '\\')).'\\'.$key;
         
-        $obj = Core::system()->getAppClass($this->getAppName(), $className, false);
+        $obj = Core::getInstance($className);
         $this->$key =& $obj;
         
         return $this->$key;

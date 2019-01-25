@@ -5,13 +5,13 @@ error_reporting(E_ALL);
 $pathInfo = [
     'PUBLIC' => __DIR__,
     'PROJECT' => '',
-    'APPLICATIONS' => '',
+    'APPLICATION' => '',
     'PLUGINS' => '',
     'TEMP' => '',
 ];
 
 $pathInfo['PROJECT'] = realpath($pathInfo['PUBLIC'].'/../');
-$pathInfo['APPLICATIONS'] = $pathInfo['PROJECT'].'/applications';
+$pathInfo['APPLICATION'] = $pathInfo['PROJECT'].'/application';
 $pathInfo['PLUGINS'] = $pathInfo['PROJECT'].'/plugins';
 $pathInfo['TEMP'] = $pathInfo['PROJECT'].'/tmp';
 
@@ -30,6 +30,7 @@ date_default_timezone_set('GMT');
 // Ensure the current directory is pointing to the public directory
 chdir(PATH_DETAILS['PUBLIC']);
 
+require_once PATH_DETAILS['PROJECT'].'/functions.php';
 require_once PATH_DETAILS['PROJECT'].'/bootstrap.php';
 require_once PATH_DETAILS['PLUGINS'].'/Zamp/Core.php';
 
