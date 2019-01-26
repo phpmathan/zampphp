@@ -1,0 +1,18 @@
+# This plugins.yml file just used for reference of all installed plugins in your application
+
+# Required for \Zamp\Mailer::class
+Swift_:
+    composerRequire: swiftmailer/swiftmailer
+    sourcePath: https://github.com/swiftmailer/swiftmailer/tree/master/lib
+    targetPath: PATH_DETAILS["PLUGINS"]/swiftmailer
+    depends:
+        Egulias\EmailValidator:
+            composerRequire: egulias/email-validator
+            sourcePath: https://github.com/egulias/EmailValidator/tree/master/EmailValidator
+            targetPath: PATH_DETAILS["PLUGINS"]/EmailValidator
+            depends:
+                Doctrine\Common\Lexer:
+                    composerRequire: doctrine/lexer
+                    sourcePath: https://github.com/doctrine/lexer/tree/master/lib/Doctrine/Common/Lexer
+                    targetPath: PATH_DETAILS["PLUGINS"]/Doctrine/Common/Lexer
+

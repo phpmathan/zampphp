@@ -3,16 +3,19 @@
 namespace Zamp;
 
 class Security extends Base {
-    // Random Security code
-    public $secretKey;
-    
-    public function __construct() {
-        $this->secretKey = Core::system()->config['bootstrap']['encryptionSecretKey'] ?? 'aK1fegBuu7Fy2kgboHuu';
+    // Default secret key
+    public static function getDefaultKey() {
+        static $key;
+        
+        if($key)
+            return $key;
+        
+        return $key = Core::system()->config['bootstrap']['encryptionSecretKey'] ?? 'aK1fegBuu7Fy2kgboHuu';
     }
     
     // Encode the given string
-    public function encode($str, $key='', $identifier='$', $cipher='bf-cbc') {
-        $key = $key ?: $this->secret_key;
+    public static function encode($str, $key=null, $identifier='$', $cipher='bf-cbc') {
+        $key = $key ?? self::getDefaultKey();
         $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length($cipher));
         $str = openssl_encrypt($str, $cipher, $key, 0, $iv);
         
@@ -20,8 +23,8 @@ class Security extends Base {
     }
     
     // Decode the given encoded string
-    public function decode($cryptArr, $key='', $identifier='$', $cipher='bf-cbc') {
-        $key = $key ?: $this->secret_key;
+    public static function decode($cryptArr, $key=null, $identifier='$', $cipher='bf-cbc') {
+        $key = $key ?? self::getDefaultKey();
         $cryptArr = General::base64Decode($cryptArr);
         $cryptArr = explode($identifier, $cryptArr);
         
@@ -92,7 +95,7 @@ class Security extends Base {
     }
     
     // Strip Image Tags
-    public function stripImageTags($str) {
+    public static function stripImageTags($str) {
         return preg_replace(
             [
                 '#<img[\s/]+.*?src\s*=\s*(["\'])([^\\1]+?)\\1.*?\>#i',

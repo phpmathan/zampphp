@@ -1,0 +1,16 @@
+---
+version: '20190126'
+name: App
+description: Application module.
+dependencies:
+    extensions:
+        required: []
+        optional: []
+    
+    modules:
+        required: []
+        optional: []
+    
+    plugins:
+        required: []
+        optional: []
