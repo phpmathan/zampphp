@@ -6,7 +6,7 @@ if(phpversion() < '7.3.0')
     exit("Your PHP version must be 7.3.0 or higher. Current version: " . phpversion());
 
 // Zamp PHP version
-const VERSION = '6.1.2';
+const VERSION = '6.1.6';
 
 // Define next line character
 define(__NAMESPACE__.'\NEXT_LINE', (
@@ -512,7 +512,7 @@ function isFileExists($input1, $input2='', $forceCheck=false, $noCacheSave=false
 }
 
 // Get environment values defined in `.env.php` file under PATH_DETAILS['PROJECT']
-function env($key) {
+function env($key, $defaultValue=null) {
     static $env;
     
     if($env === null) {
@@ -520,7 +520,7 @@ function env($key) {
         $env = isFileExists($file, 'env_values') ?require_once $file :[];
     }
     
-    return General::getMultiArrayValue(explode('.', $key), $env);
+    return General::getMultiArrayValue(explode('.', $key), $env, $defaultValue);
 }
 
 // Get configuration array or value

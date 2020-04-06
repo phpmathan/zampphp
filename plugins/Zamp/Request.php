@@ -3,6 +3,10 @@
 namespace Zamp;
 
 class Request extends Base {
+    const CONTENT_TYPE_URL = 1;
+    const CONTENT_TYPE_STRING = 2;
+    const CONTENT_TYPE_IMAGE = 3;
+    
     // Character set
     public $charset = 'UTF-8';
     
@@ -72,11 +76,11 @@ class Request extends Base {
      *  Note: Should only be used to deal with data upon submission.
      *      It's not something that should be used for general runtime processing.
      */
-    public function xssClean($str, $isImage=false) {
+    public function xssClean($str, $contentType=1) {
         // Is the string an array?
         if((array) $str === $str) {
             while(list($key) = each($str))
-                $str[$key] = $this->xssClean($str[$key], $isImage);
+                $str[$key] = $this->xssClean($str[$key], $contentType);
             
             return $str;
         }
@@ -96,7 +100,7 @@ class Request extends Base {
          *
          * Note: Use rawurldecode() so it does not remove plus signs
          */
-        if(stripos($str, '%') !== false) {
+        if($contentType === self::CONTENT_TYPE_URL && (stripos($str, '%') !== false)) {
             do {
                 $oldstr = $str;
                 $str = rawurldecode($str);
@@ -145,7 +149,7 @@ class Request extends Base {
          *
          * But it doesn't seem to pose a problem.
          */
-        if($isImage === true) {
+        if($contentType === self::CONTENT_TYPE_IMAGE) {
             // Images have a tendency to have the PHP short opening and
             // closing tags every so often so we skip those and only
             // do the long opening tags.
@@ -274,7 +278,7 @@ class Request extends Base {
          * string post-removal of XSS, then it fails, as there was unwanted XSS
          * code found and removed/changed during processing.
          */
-        if($isImage === true)
+        if($contentType === self::CONTENT_TYPE_IMAGE)
             return $str === $converted_string;
         
         return $str;
@@ -589,17 +593,17 @@ class Request extends Base {
     }
     
     // Apply XSS filter for parsed input
-    public function arrayXssClean($data, $isImage=false) {
+    public function arrayXssClean($data, $contentType=1) {
         if((array) $data === $data) {
             $new_data = [];
             
             foreach($data as $key => $value)
-                $new_data[$key] = ((array) $value === $value) ?$this->arrayXssClean($value, $isImage) :$this->xssClean($value, $isImage);
+                $new_data[$key] = ((array) $value === $value) ?$this->arrayXssClean($value, $contentType) :$this->xssClean($value, $contentType);
             
             return $new_data;
         }
         else
-            return $this->xssClean($data, $isImage);
+            return $this->xssClean($data, $contentType);
     }
     
     // Fetch an item from the COOKIE array

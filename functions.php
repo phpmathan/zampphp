@@ -20,18 +20,27 @@ function debug($data, $exit=true, $dump=false) {
         Zamp\cleanExit();
 }
 
+function varDump($mixed=null) {
+    ini_set("xdebug.overload_var_dump", "off");
+    
+    ob_start();
+    var_dump($mixed);
+    $content = ob_get_contents();
+    ob_end_clean();
+    
+    return $content;
+}
+
 function debugData($data, $name='', $append=true) {
     $options = LOCK_EX;
     
     if($append)
         $options = $options | FILE_APPEND;
     
-    $log = '';
+    $data = $name === true ?varDump($data) :print_r($data, true);
     
-    if($name)
-        $log .= "// {$name}\n";
-    
-    $log .= print_r($data, true)."\n/*************************************************************/\n";
+    $log = "// ".date('r')." {$name}\n";
+    $log .= $data."/*************************************************************/\n";
     
     file_put_contents(PATH_DETAILS['PROJECT'].'/debug.txt', $log, $options);
 }

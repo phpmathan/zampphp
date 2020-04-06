@@ -30,9 +30,9 @@ date_default_timezone_set('GMT');
 // Ensure the current directory is pointing to the public directory
 chdir(PATH_DETAILS['PUBLIC']);
 
+require_once PATH_DETAILS['PLUGINS'].'/Zamp/Core.php';
 require_once PATH_DETAILS['PROJECT'].'/functions.php';
 require_once PATH_DETAILS['PROJECT'].'/bootstrap.php';
-require_once PATH_DETAILS['PLUGINS'].'/Zamp/Core.php';
 
 //$system = Zamp\System::obj()->bootstrap($bootstrap);
 $system = Zamp\Core::getInstance(Zamp\System::class)->bootstrap($bootstrap);

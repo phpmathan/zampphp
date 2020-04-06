@@ -166,7 +166,12 @@
 			<tr>
 				<td style="font-size:12px;font-weight:bold;">Operating System</td>
 				<td>&nbsp;</td>
-				<td><?php echo php_uname(); ?></td>
+                <td>
+                <?php
+                    $user = posix_getpwuid(posix_geteuid());
+                    echo php_uname() .' (User: '.$user['name'].')';
+                ?>
+                </td>
 			</tr>
 			<tr>
 				<td style="font-size:12px;font-weight:bold;">Generated Time</td>

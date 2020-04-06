@@ -1,6 +1,8 @@
 <?php
 
-$config['modules']['App'] = [
+$configPath = 'modules/App';
+
+return [
     
 ];
 /* END OF FILE */

@@ -44,7 +44,7 @@ $bootstrap = [
          *  This callback will be called only when maintainance is active, and if it return as `true` then access allowed.
          */
         'exclusiveAccessCallback' => function() {
-            $request = \Zamp\Core::system()->request;
+            $request = \Zamp()->request;
             $accessKey = 'ZampPHP';
             
             if($request->getParam('accessKey') == $accessKey) {
@@ -161,10 +161,10 @@ $bootstrap = [
      */
     'defaultEmailTransport' => [
         '_object' => 'Swift_SmtpTransport',
-        'host' => 'localhost',
-        'port' => 25,
-        'username' => '',
-        'password' => '',
+        'host' => \Zamp\env('defaultSmtp.host'),
+        'port' => \Zamp\env('defaultSmtp.port', 25),
+        'username' => \Zamp\env('defaultSmtp.username'),
+        'password' => \Zamp\env('defaultSmtp.password'),
         'encryption' => 'tls',
     ],
     
@@ -180,8 +180,8 @@ $bootstrap = [
         'intervalForSameErrorReAlert' => 300,
         'mailerSettings' => [
             'message' => [
-                'from' => ['noreply@zampphp.org' => 'Zamp'],
-                'to' => ['phpmathan@gmail.com' => 'Mathan Kumar'],
+                'from' => \Zamp\env('developer.fromEmail', []),
+                'to' => \Zamp\env('developer.toEmail', []),
                 'subject' => 'Application Error',
                 'body' => 'Hi, Your application received some errors. Immediately look it out.',
                 'contentType' => 'text/html',
@@ -215,7 +215,7 @@ $bootstrap = [
     'defaultAction' => 'index',
     
     // Encryption secret key string. Zamp prefer you to set some random characters as secret key
-    'encryptionSecretKey' => 'Ch644QqA9P2eXZRDUPkt',
+    'encryptionSecretKey' => \Zamp\env('encryptionSecretKey'),
     
     /**
      *  Callback function to call when 404 error occured in NON development phase
@@ -270,7 +270,11 @@ $bootstrap = [
     /**
      *  Callback to call whenever module configurations loaded
      *  
-     *  yourCallback(String $moduleName, Array $configFilesFullPath): void
+     *  yourCallback(String $moduleName, String $configPath, Array $loadedConfigs): void
+     *  
+     *  $loadedConfigs = [
+     *      'loaded-config-file' => 'loaded-config-path'
+     *  ];
      *  
      *  refer Zamp\doCall() function in Zamp/Core.php for callback functions
      */

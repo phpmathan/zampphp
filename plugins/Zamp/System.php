@@ -150,15 +150,18 @@ class System extends Base {
         else
             $configFiles = [];
         
+        $loadedConfigs = [];
+        
         foreach($configFiles as $configFile) {
-            $this->_internal['loadedConfigFiles'][$configFile] = 1;
-            require_once $configFile;
+            $config = require_once $configFile;
+            $this->_internal['loadedConfigFiles'][$configFile] = $configPath;
+            $loadedConfigs[$configFile] = $configPath;
+            
+            $this->config = General::arrayMergeRecursiveDistinct($this->config, $config);
         }
         
-        $this->config = General::arrayMergeRecursiveDistinct($this->config, $config ?: []);
-        
         if($this->config['bootstrap']['onModuleConfigLoadedCallback'])
-            doCall($this->config['bootstrap']['onModuleConfigLoadedCallback'], ['Core', $configFiles]);
+            doCall($this->config['bootstrap']['onModuleConfigLoadedCallback'], ['Core', '*', $loadedConfigs]);
     }
     
     public function checkAndLoadConfiguration($confToCheck, $confFileName, $moduleName) {
@@ -175,13 +178,16 @@ class System extends Base {
         if(isset($this->_internal['loadedConfigFiles'][$configFile]))
             return $_loadedConf[$confToCheck] = false;
         
-        $this->_internal['loadedConfigFiles'][$configFile] = 1;
-        require_once $configFile;
+        $config = require_once $configFile;
+        $this->_internal['loadedConfigFiles'][$configFile] = $configPath;
         
-        $this->config = General::arrayMergeRecursiveDistinct($this->config, $config ?: []);
+        $this->config = General::arrayMergeRecursiveDistinct($this->config, $config);
         
-        if($this->config['bootstrap']['onModuleConfigLoadedCallback'])
-            doCall($this->config['bootstrap']['onModuleConfigLoadedCallback'], [$moduleName, [$configFile]]);
+        if($this->config['bootstrap']['onModuleConfigLoadedCallback']) {
+            doCall($this->config['bootstrap']['onModuleConfigLoadedCallback'], [$moduleName, $confToCheck, [
+                $configFile => $configPath
+            ]]);
+        }
         
         return $_loadedConf[$confToCheck] = true;
     }
@@ -553,6 +559,10 @@ class System extends Base {
     
     public function systemTime($format=null, $timeDiff=null) {
         $now = \DateTime::createFromFormat('U.u', number_format(microtime(true), 6, '.', ''));
+        
+        if($format === 'iso-gmt')
+            return substr($now->format('Y-m-d\TH:i:s.u'), 0, -3).'Z';
+        
         $timeDiff = (int) ($timeDiff ?? $this->config['bootstrap']['appTimeDiffFromGmt']);
         $now->modify($timeDiff.' seconds');
         

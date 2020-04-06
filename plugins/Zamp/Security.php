@@ -2,20 +2,10 @@
 
 namespace Zamp;
 
-class Security extends Base {
-    // Default secret key
-    public static function getDefaultKey() {
-        static $key;
-        
-        if($key)
-            return $key;
-        
-        return $key = Core::system()->config['bootstrap']['encryptionSecretKey'] ?? 'aK1fegBuu7Fy2kgboHuu';
-    }
-    
+class Security {
     // Encode the given string
     public static function encode($str, $key=null, $identifier='$', $cipher='bf-cbc') {
-        $key = $key ?? self::getDefaultKey();
+        $key = $key ?? Core::system()->config['bootstrap']['encryptionSecretKey'];
         $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length($cipher));
         $str = openssl_encrypt($str, $cipher, $key, 0, $iv);
         
@@ -24,7 +14,7 @@ class Security extends Base {
     
     // Decode the given encoded string
     public static function decode($cryptArr, $key=null, $identifier='$', $cipher='bf-cbc') {
-        $key = $key ?? self::getDefaultKey();
+        $key = $key ?? Core::system()->config['bootstrap']['encryptionSecretKey'];
         $cryptArr = General::base64Decode($cryptArr);
         $cryptArr = explode($identifier, $cryptArr);
         
