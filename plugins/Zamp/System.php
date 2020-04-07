@@ -154,6 +154,8 @@ class System extends Base {
         
         foreach($configFiles as $configFile) {
             $config = require_once $configFile;
+            $config = General::setMultiArrayValue(explode('/', $configPath), $config);
+            
             $this->_internal['loadedConfigFiles'][$configFile] = $configPath;
             $loadedConfigs[$configFile] = $configPath;
             
@@ -179,6 +181,8 @@ class System extends Base {
             return $_loadedConf[$confToCheck] = false;
         
         $config = require_once $configFile;
+        $config = General::setMultiArrayValue(explode('/', $configPath), $config);
+        
         $this->_internal['loadedConfigFiles'][$configFile] = $configPath;
         
         $this->config = General::arrayMergeRecursiveDistinct($this->config, $config);

@@ -3,6 +3,12 @@
 namespace Zamp;
 
 class Mailer {
+    private static $_defaultHandlers = [
+        'transport' => false,
+        'message' => false,
+        'mailer' => false,
+    ];
+    
     private static function _init() {
         static $initiated = false;
         
@@ -15,6 +21,17 @@ class Mailer {
             
             require_once PATH_DETAILS['PLUGINS'].'/swiftmailer/swift_required.php';
         }
+    }
+    
+    public static function registerDefaultHandler($type, $callback) {
+        if(!isset(self::$_defaultHandlers[$type]))
+            throw new Exceptions\Mailer("Default Handler type is not valid.", 7);
+        
+        self::$_defaultHandlers[$type] = $callback;
+    }
+    
+    public static function getDefaultHandlers() {
+        return self::$_defaultHandlers;
     }
     
     /**
@@ -60,6 +77,8 @@ class Mailer {
         
         if(!empty($settings['_handler']))
             $obj = doCall($settings['_handler'], [$obj]);
+        elseif(self::$_defaultHandlers['transport'])
+            $obj = doCall(self::$_defaultHandlers['transport'], [$obj]);
         
         return $transports[$id] =& $obj;
     }
@@ -263,11 +282,15 @@ class Mailer {
         
         if(!empty($config['message']['_handler']))
             $message = doCall($config['message']['_handler'], [$message, $inlineImages, $attachments]);
+        elseif(self::$_defaultHandlers['message'])
+            $message = doCall(self::$_defaultHandlers['message'], [$message, $inlineImages, $attachments]);
         
         $mailer = new \Swift_Mailer($transport);
         
         if(!empty($config['mailer']['_handler']))
             $mailer = doCall($config['mailer']['_handler'], [$mailer]);
+        elseif(self::$_defaultHandlers['mailer'])
+            $mailer = doCall(self::$_defaultHandlers['mailer'], [$mailer]);
         
         if($mailer->send($message, $failed))
             return true;
