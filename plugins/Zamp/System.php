@@ -561,17 +561,41 @@ class System extends Base {
         throw new Exceptions\Bootstrap($errorDialog);
     }
     
-    public function systemTime($format=null, $timeDiff=null) {
+    /**
+     *  \Zamp()->systemTime('iso-gmt'); // 2020-04-09T06:41:26.977Z
+     *  \Zamp()->systemTime('micro-seconds'); // 1586414584686038
+     *  \Zamp()->systemTime('mili-seconds'); // 1586414584686
+     *  \Zamp()->systemTime(); // 1586414584
+     *  \Zamp()->systemTime('Y-m-d'); // 2020-04-09
+     *  \Zamp()->systemTime(true); // \DateTime
+     *  \Zamp()->systemTime('iso-gmt', 0, '-P2M'); // 2020-02-09T06:41:26.977Z
+     *  \Zamp()->systemTime('iso-gmt', 0, 'P2M'); // 2020-06-09T06:41:26.977Z
+     */
+    public function systemTime($format=null, $timeDiff=null, $interval=null) {
         $now = \DateTime::createFromFormat('U.u', number_format(microtime(true), 6, '.', ''));
+        
+        if($interval) {
+            $intervalType = 'add';
+            
+            if($interval[0] == '-') {
+                $interval = substr($interval, 1);
+                $intervalType = 'sub';
+            }
+            
+            $now->$intervalType(new \DateInterval($interval));
+        }
         
         if($format === 'iso-gmt')
             return substr($now->format('Y-m-d\TH:i:s.u'), 0, -3).'Z';
         
-        $timeDiff = (int) ($timeDiff ?? $this->config['bootstrap']['appTimeDiffFromGmt']);
-        $now->modify($timeDiff.' seconds');
+        if($timeDiff = (int) ($timeDiff ?? $this->config['bootstrap']['appTimeDiffFromGmt']))
+            $now->modify($timeDiff.' seconds');
         
         if(!isset($format))
             return (int) $now->format('U');
+        
+        elseif($format === true)
+            return $now;
         
         elseif($format === 'micro-seconds')
             return (int) $now->format('Uu');

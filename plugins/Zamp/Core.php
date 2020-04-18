@@ -6,7 +6,7 @@ if(phpversion() < '7.3.0')
     exit("Your PHP version must be 7.3.0 or higher. Current version: " . phpversion());
 
 // Zamp PHP version
-const VERSION = '6.1.8';
+const VERSION = '6.1.9';
 
 // Define next line character
 define(__NAMESPACE__.'\NEXT_LINE', (
@@ -185,8 +185,17 @@ final class Core {
         
         $info['classAlias'] = $info['className'];
         
-        if($class != 'Controller')
+        if($class != 'Controller') {
+            if(isset($className[1])) {
+                $level = preg_replace('~^'.self::system()->config['bootstrap']['applicationNameSpace'].'\\\~', '', $info['className']);
+                
+                // Don't add alias if not a model
+                if(strpos($level, '\\') !== false)
+                    $info['classAlias'] = null;
+            }
+            
             $info['className'] = $info['className'].'\\'.$class;
+        }
         else {
             $module = array_pop($className);
             $info['className'] = implode('\\', $className).'\\'.$module.'\\'.$module.$class;
@@ -197,6 +206,8 @@ final class Core {
     
     // Check the class file available or not
     public static function isAvailable($className, $includeFile=true, $showException=false) {
+        $className = ltrim($className, '\\');
+        
         $return = [
             'className' => $className,
             'classAlias' => null,

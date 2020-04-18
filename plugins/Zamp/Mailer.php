@@ -3,11 +3,7 @@
 namespace Zamp;
 
 class Mailer {
-    private static $_defaultHandlers = [
-        'transport' => false,
-        'message' => false,
-        'mailer' => false,
-    ];
+    private static $_defaultMessageHandler;
     
     private static function _init() {
         static $initiated = false;
@@ -23,15 +19,12 @@ class Mailer {
         }
     }
     
-    public static function registerDefaultHandler($type, $callback) {
-        if(!isset(self::$_defaultHandlers[$type]))
-            throw new Exceptions\Mailer("Default Handler type is not valid.", 7);
-        
-        self::$_defaultHandlers[$type] = $callback;
+    public static function setDefaultMessageHandler($callback) {
+        self::$_defaultMessageHandler = $callback;
     }
     
-    public static function getDefaultHandlers() {
-        return self::$_defaultHandlers;
+    public static function getDefaultMessageHandler() {
+        return self::$_defaultMessageHandler;
     }
     
     /**
@@ -45,8 +38,6 @@ class Mailer {
      *       'encryption' => 'tls', // smtp protocol
      *       'username' => '', // smtp username
      *       'password' => '', // smtp password
-     *       
-     *       '_handler' => 'yourCallback(Object Swift_Transport): Swift_Transport',
      *   ]
      */
     public static function getTransport($settings, $id='default') {
@@ -74,11 +65,6 @@ class Mailer {
             $key = 'set'.$key;
             $obj->$key($value);
         }
-        
-        if(!empty($settings['_handler']))
-            $obj = doCall($settings['_handler'], [$obj]);
-        elseif(self::$_defaultHandlers['transport'])
-            $obj = doCall(self::$_defaultHandlers['transport'], [$obj]);
         
         return $transports[$id] =& $obj;
     }
@@ -200,16 +186,17 @@ class Mailer {
      *           'id' => 'message ID',
      *           'contentType' => 'text/html',
      *           
-     *           '_handler' => 'yourCallback(Object Swift_Message, Array $inlineImages, Array $attachments): Swift_Message',
+     *           '_handlerArgs' => [],
+     *           '_handler' => 'yourCallback(
+     *                  Array $_handlerArgs, Object Swift_Transport, Object Swift_Message,
+     *                  Array $inlineImages, Array $attachments
+     *           ): Swift_Message|Array',
      *       ],
      *       'inlineImages' => [
      *          'Array of Swift_Image object or self::getInlineImage() settings',
      *       ],
      *      'attachments' => [
      *          'Array of Swift_Attachment object or self::getAttachment() settings',
-     *       ],
-     *       'mailer' => [
-     *           '_handler' => 'yourCallback(Object Swift_Mailer): Swift_Mailer',
      *       ],
      *   ];
      */
@@ -273,7 +260,7 @@ class Mailer {
         }
         
         foreach($config['message'] as $key => $value) {
-            if($key == '_handler')
+            if($key == '_handler' || $key == '_handlerArgs')
                 continue;
             
             $key = 'set'.$key;
@@ -281,21 +268,29 @@ class Mailer {
         }
         
         if(!empty($config['message']['_handler']))
-            $message = doCall($config['message']['_handler'], [$message, $inlineImages, $attachments]);
-        elseif(self::$_defaultHandlers['message'])
-            $message = doCall(self::$_defaultHandlers['message'], [$message, $inlineImages, $attachments]);
+            $messageHandler = $config['message']['_handler'];
+        elseif(self::$_defaultMessageHandler)
+            $messageHandler = self::$_defaultMessageHandler;
+        else
+            $messageHandler = null;
         
-        $mailer = new \Swift_Mailer($transport);
+        if($messageHandler) {
+            $_handlerArgs = $config['message']['_handlerArgs'] ?? [];
+            
+            $message = doCall($messageHandler, [
+                $_handlerArgs, $transport, $message, $inlineImages, $attachments
+            ]);
+            
+            if(!($message instanceof \Swift_Message))
+                return $message;
+        }
         
-        if(!empty($config['mailer']['_handler']))
-            $mailer = doCall($config['mailer']['_handler'], [$mailer]);
-        elseif(self::$_defaultHandlers['mailer'])
-            $mailer = doCall(self::$_defaultHandlers['mailer'], [$mailer]);
+        $success = (new \Swift_Mailer($transport))->send($message, $failed);
         
-        if($mailer->send($message, $failed))
-            return true;
-        
-        return $failed;
+        return [
+            'success' => $success,
+            'failed' => $failed
+        ];
     }
 }
 /* END OF FILE */
