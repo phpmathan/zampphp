@@ -51,7 +51,7 @@ class Redis extends AbstractClass {
     }
     
     public function set($key, $value, $ttl=null) {
-        $ttl = $ttl ?? $this->ttl;
+        $ttl ??= $this->ttl;
         $ttl = (int) $ttl;
         
         $key = explode('/', $key);

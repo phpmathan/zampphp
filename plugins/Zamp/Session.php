@@ -28,6 +28,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
             'cookieDomain' => $default['domain'],
             'cookieSecure' => $default['secure'],
             'cookieHttpOnly' => $default['httponly'] ?? false,
+            'cookieSameSite' => $default['samesite'],
             'cacheLimiter' => null,
             'cacheExpire' => null,
         ], $config);
@@ -74,13 +75,14 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
             $config['isInternalOnly'] = true;
         }
         
-        session_set_cookie_params(
-            $config['cookieLifetime'],
-            $config['cookiePath'],
-            $config['cookieDomain'],
-            $config['cookieSecure'],
-            $config['cookieHttpOnly']
-        );
+        session_set_cookie_params([
+            'lifetime' => $config['cookieLifetime'],
+            'path' => $config['cookiePath'],
+            'domain' => $config['cookieDomain'],
+            'secure' => $config['cookieSecure'],
+            'httponly' => $config['cookieHttpOnly'],
+            'samesite' => $config['cookieSameSite'],
+        ]);
         
         if(isset($config['cacheLimiter']))
             session_cache_limiter($config['cacheLimiter']);
@@ -114,9 +116,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
         
         register_shutdown_function('\session_write_close');
         
-        Core::cleanExitCallbackSet('session_write_close', function() {
-            session_write_close();
-        });
+        Core::cleanExitCallbackSet('session_write_close', fn() => session_write_close());
     }
     
     final public static function info() {
@@ -157,7 +157,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
     }
     
     final public static function profileInfo($profile=null) {
-        $profile = $profile ?? self::currentProfile();
+        $profile ??= self::currentProfile();
         return self::$_info['profiles'][$profile];
     }
     
@@ -170,7 +170,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
     }
     
     final public static function reOpen($profile=null) {
-        $profile = $profile ?? self::currentProfile();
+        $profile ??= self::currentProfile();
         
         if(!self::isClosed($profile))
             return false;
@@ -200,7 +200,7 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
         if(!self::isStarted())
             return false;
         
-        $profile = $profile ?? self::currentProfile();
+        $profile ??= self::currentProfile();
         
         $status = self::getStatus($profile);
         
@@ -215,7 +215,12 @@ class Session implements \SessionHandlerInterface, \SessionIdInterface {
     }
     
     public static function generateSessionId() {
-        return bin2hex(openssl_random_pseudo_bytes(20));
+        $value = bin2hex(random_bytes(20));
+        
+        while($value[0] == '0')
+            $value = bin2hex(random_bytes(20));
+        
+        return $value;
     }
     
     public static function isValidSessionId($id) {

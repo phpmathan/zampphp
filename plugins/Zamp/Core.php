@@ -2,11 +2,11 @@
 
 namespace Zamp;
 
-if(phpversion() < '7.3.0')
-    exit("Your PHP version must be 7.3.0 or higher. Current version: " . phpversion());
+if(phpversion() < '7.4.0')
+    exit("Your PHP version must be 7.4.0 or higher. Current version: " . phpversion());
 
 // Zamp PHP version
-const VERSION = '6.1.9';
+const VERSION = '6.1.12';
 
 // Define next line character
 define(__NAMESPACE__.'\NEXT_LINE', (

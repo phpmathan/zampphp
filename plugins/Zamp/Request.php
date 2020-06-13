@@ -16,7 +16,7 @@ class Request extends Base {
     // Generates the XSS hash if needed and returns it
     public function xssHash() {
         if($this->_xss_hash === null)
-            $this->_xss_hash = bin2hex(openssl_random_pseudo_bytes(16, $isStrong));
+            $this->_xss_hash = bin2hex(random_bytes(16));
         
         return $this->_xss_hash;
     }
@@ -491,7 +491,7 @@ class Request extends Base {
     }
     
     // Fetch the IP Address
-    public function ipAddress(&$proxyIp='') {
+    public function ipAddress(&$proxyIp=null) {
         if(isset($this->ipAddress)) {
             $proxyIp = $this->ipAddress['proxyIp'];
             return $this->ipAddress['realIp'];
@@ -519,7 +519,7 @@ class Request extends Base {
         $proxyIp = $_SERVER['REMOTE_ADDR'];
         
         if($realIp == $proxyIp)
-            $proxyIp = '';
+            $proxyIp = null;
         else {
             $realIp = str_replace(';', ',', $realIp);
             $realIp = explode(',', $realIp);
@@ -654,6 +654,55 @@ class Request extends Base {
         }
     }
     
+    private function _server($name) {
+        $replaceBack = [];
+        
+        if(
+            $name == 'REQUEST_URI'
+                ||
+            $name == 'QUERY_STRING'
+                ||
+            $name == 'HTTP_REFERER'
+        ) {
+            $replaceBack = [
+                '%26' => '~26', // &
+                '%2B' => '~2B', // +
+                '%3F' => '~3F', // ?
+                '%2F' => '~2F', // /
+                '%7E' => '~7E', // ~
+                '%3A' => '~3A', // :
+                '%5C' => '~5C', // \
+                '%3D' => '~3D', // =
+                '%40' => '~40', // @
+                '%23' => '~23', // #
+            ];
+            
+            $replaceBack = [array_keys($replaceBack), $replaceBack];
+        }
+        
+        $serverData = $_SERVER[$name];
+        
+        if($serverData !== null) {
+            $patterns = [
+                '~([\?\&]?)%0[aAdD][^&]*~' => '\\1',
+                '~\?&+~' => '?',
+                '~&{2,}~' => '&',
+            ];
+            
+            $serverData = preg_replace(array_keys($patterns), $patterns, $serverData);
+            
+            if($replaceBack)
+                $serverData = str_replace($replaceBack[0], $replaceBack[1], $serverData);
+            
+            $serverData = $this->xssClean($serverData, false);
+            
+            if($replaceBack)
+                $serverData = str_replace($replaceBack[1], $replaceBack[0], $serverData);
+        }
+        
+        return $this->server_data[$name] = $serverData;
+    }
+    
     // Fetch an item from the SERVER array
     public function server($name='', $xssClean=true) {
         if($name) {
@@ -666,46 +715,14 @@ class Request extends Base {
             if(isset($this->server_data[$name]))
                 return $this->server_data[$name];
             
-            $replaceBack = [];
-            
-            if(
-                $name == 'REQUEST_URI'
-                    ||
-                $name == 'QUERY_STRING'
-                    ||
-                $name == 'HTTP_REFERER'
-            ) {
-                $replaceBack = [
-                    '%26' => '~26', // &
-                    '%2B' => '~2B', // +
-                    '%3F' => '~3F', // ?
-                    '%2F' => '~2F', // /
-                    '%7E' => '~7E', // ~
-                    '%3A' => '~3A', // :
-                    '%5C' => '~5C', // \
-                    '%3D' => '~3D', // =
-                    '%40' => '~40', // @
-                    '%23' => '~23', // #
-                ];
-            }
-            
-            $serverData = $_SERVER;
-            
-            if($replaceBack)
-                $serverData[$name] = str_replace(array_keys($replaceBack), $replaceBack, $serverData[$name]);
-            
-            $this->server_data[$name] = $this->_grubGlobalArray($serverData, $name, $xssClean);
-            
-            if($replaceBack)
-                $this->server_data[$name] = str_replace($replaceBack, array_keys($replaceBack), $this->server_data[$name]);
-            
-            return $this->server_data[$name];
+            return $this->_server($name);
         }
         else {
             if(!$xssClean)
                 return $_SERVER;
             
-            $this->server_data = $this->arrayXssClean($_SERVER, false);
+            foreach($_SERVER as $name => $value)
+                $this->_server($name);
             
             return $this->server_data;
         }

@@ -185,14 +185,14 @@ class ErrorHandler extends Base {
                 E_STRICT => 'Runtime Notice'
             ];
             
-            $errorInfo['code'] = $traces[0]['args'][0];
+            $errorInfo['code'] = $traces[0]['args'][0] ?? $exception->getCode();
             
             if(isset($errorTypes[$errorInfo['code']]))
                 $errorInfo['text'] = ($errorText = $errorTypes[$errorInfo['code']]) ?$errorText :'Unknown Error';
             else
                 $errorInfo['text'] = 'Unknown Error';
             
-            $errorInfo['name'] = $traces[0]['args'][1];
+            $errorInfo['name'] = $traces[0]['args'][1] ?? get_class($exception);
         }
         else {
             $errorInfo['code'] = $exception->getCode();

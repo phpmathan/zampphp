@@ -5,8 +5,8 @@ namespace Zamp;
 class Security {
     // Encode the given string
     public static function encode($str, $key=null, $identifier='$', $cipher='bf-cbc') {
-        $key = $key ?? Core::system()->config['bootstrap']['encryptionSecretKey'];
-        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length($cipher));
+        $key ??= Core::system()->config['bootstrap']['encryptionSecretKey'];
+        $iv = random_bytes(openssl_cipher_iv_length($cipher));
         $str = openssl_encrypt($str, $cipher, $key, 0, $iv);
         
         return General::base64Encode($str.$identifier.base64_encode($iv));
@@ -14,7 +14,7 @@ class Security {
     
     // Decode the given encoded string
     public static function decode($cryptArr, $key=null, $identifier='$', $cipher='bf-cbc') {
-        $key = $key ?? Core::system()->config['bootstrap']['encryptionSecretKey'];
+        $key ??= Core::system()->config['bootstrap']['encryptionSecretKey'];
         $cryptArr = General::base64Decode($cryptArr);
         $cryptArr = explode($identifier, $cryptArr);
         

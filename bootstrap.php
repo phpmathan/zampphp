@@ -199,8 +199,8 @@ $bootstrap = [
      *  Example: modules\Core\Misc -> resolves to PATH_DETAILS['APPLICATION']/Core/Model/Misc.php
      *  
      *  If class NOT found just after the module then it will resolve relative to the namespace path
-     *  Example: modules\Core\Helpers\Array2Xml -> resolves to PATH_DETAILS['APPLICATION']/Core/Helpers/Array2Xml.php
-     *  Example: modules\Core\Plugins\Http\Request\Hander -> resolves to PATH_DETAILS['APPLICATION']/Core/Plugins/Http/Request/Hander.php
+     *  Example: modules\Core\Helper\Array2Xml -> resolves to PATH_DETAILS['APPLICATION']/Core/Helper/Array2Xml.php
+     *  Example: modules\Core\Plugin\Http\Request\Hander -> resolves to PATH_DETAILS['APPLICATION']/Core/Plugin/Http/Request/Hander.php
      */
     'applicationNameSpace' => 'modules',
     
