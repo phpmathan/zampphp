@@ -6,7 +6,7 @@ if(phpversion() < '7.4.0')
     exit("Your PHP version must be 7.4.0 or higher. Current version: " . phpversion());
 
 // Zamp PHP version
-const VERSION = '6.1.12';
+const VERSION = '6.1.14';
 
 // Define next line character
 define(__NAMESPACE__.'\NEXT_LINE', (

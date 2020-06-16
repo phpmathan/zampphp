@@ -11,6 +11,7 @@ class Redis extends AbstractClass {
         'timeout' => 0,
         'password' => null,
         'database' => null,
+        'persistentId' => null,
     ];
     
     public $redisServer;
@@ -23,7 +24,12 @@ class Redis extends AbstractClass {
         
         $this->redisServer = new \Redis();
         
-        if(!$this->redisServer->connect($config['host'], $config['port'], $config['timeout']))
+        if(isset($config['persistentId']))
+            $ok = $this->redisServer->pconnect($config['host'], $config['port'], $config['timeout'], $config['persistentId']);
+        else
+            $ok = $this->redisServer->connect($config['host'], $config['port'], $config['timeout']);
+        
+        if(!$ok)
             throw new \Zamp\Exceptions\CacheInitFailed('Redis connection failed.', 2);
         
         if(isset($config['password']) && !$this->redisServer->auth($config['password']))

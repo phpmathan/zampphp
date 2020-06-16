@@ -119,7 +119,9 @@ class Request extends Base {
          * these are the ones that will pose security problems.
          */
         $str = preg_replace_callback("/[^a-z0-9>]+[a-z0-9]+=([\'\"]).*?\\1/si", [$this, '_convertAttribute'], $str);
-        $str = preg_replace_callback('/<\w+.*/si', [$this, '_decodeEntity'], $str);
+        
+        if($contentType !== self::CONTENT_TYPE_STRING)
+            $str = preg_replace_callback('/<\w+.*/si', [$this, '_decodeEntity'], $str);
         
         // Remove Invisible Characters Again!
         $str = Security::removeInvisibleCharacters($str);
@@ -582,12 +584,12 @@ class Request extends Base {
     }
     
     // This is a helper function to retrieve values from global arrays
-    private function _grubGlobalArray(&$array, $name='', $xssClean=false) {
+    private function _grubGlobalArray(&$array, $name='', $xssClean=false, $contentType=1) {
         if(!isset($array[$name]))
             return;
         
         if($xssClean)
-            return $this->arrayXssClean($array[$name], false);
+            return $this->arrayXssClean($array[$name], $contentType);
         
         return $array[$name];
     }
@@ -640,7 +642,7 @@ class Request extends Base {
                 return $_POST[$name];
             
             if(!isset($this->post_data[$name]))
-                $this->post_data[$name] = $this->_grubGlobalArray($_POST, $name, $xssClean);
+                $this->post_data[$name] = $this->_grubGlobalArray($_POST, $name, $xssClean, self::CONTENT_TYPE_STRING);
             
             return $this->post_data[$name];
         }
@@ -648,7 +650,7 @@ class Request extends Base {
             if(!$xssClean)
                 return $_POST;
             
-            $this->post_data = $this->arrayXssClean($_POST);
+            $this->post_data = $this->arrayXssClean($_POST, self::CONTENT_TYPE_STRING);
             
             return $this->post_data;
         }
@@ -684,7 +686,7 @@ class Request extends Base {
         
         if($serverData !== null) {
             $patterns = [
-                '~([\?\&]?)%0[aAdD][^&]*~' => '\\1',
+                '~([\?\&]?)%0[aAdD][^&\?]*~' => '\\1',
                 '~\?&+~' => '?',
                 '~&{2,}~' => '&',
             ];
@@ -694,7 +696,7 @@ class Request extends Base {
             if($replaceBack)
                 $serverData = str_replace($replaceBack[0], $replaceBack[1], $serverData);
             
-            $serverData = $this->xssClean($serverData, false);
+            $serverData = $this->xssClean($serverData, self::CONTENT_TYPE_URL);
             
             if($replaceBack)
                 $serverData = str_replace($replaceBack[1], $replaceBack[0], $serverData);
